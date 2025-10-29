@@ -14,6 +14,7 @@ import PostJobScreen from './screens/PostJob';
 import JobDetailsScreen from './screens/JobDetails';
 import SearchScreen from './screens/Search';
 import TestimonialScreen from './screens/Testimonial';
+import AllTestimonialsScreen from './screens/AllTestimonials';
 
 const Stack = createStackNavigator();
 
@@ -50,6 +51,7 @@ export default function App() {
               <Stack.Screen name="JobDetails" component={JobDetailsScreen} options={{ title: 'Job Details' }} />
               <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Search Jobs' }} />
               <Stack.Screen name="Testimonial" component={TestimonialScreen} options={{ title: 'Leave Testimonial' }} />
+              <Stack.Screen name="AllTestimonials" component={AllTestimonialsScreen} options={{ title: 'All Testimonials' }} />
             </>
           )}
         </Stack.Navigator>

@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Dimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph, Button, FAB } from 'react-native-paper';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
   const [testimonials, setTestimonials] = useState([]);
+  const [lastJob, setLastJob] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchTestimonials();
-  }, []);
-
-  const fetchTestimonials = async () => {
+  const fetchTestimonials = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'jobs'));
       const allTestimonials = [];
+      let jobsData = [];
       querySnapshot.forEach((doc) => {
         const job = doc.data();
+        jobsData.push({ id: doc.id, ...job });
         if (job.testimonials) {
           job.testimonials.forEach((testimonial) => {
             allTestimonials.push({
@@ -29,13 +29,67 @@ const DashboardScreen = ({ navigation }) => {
           });
         }
       });
-      // Get positive testimonials (rating >= 4)
-      const positiveTestimonials = allTestimonials.filter(t => t.rating >= 4).slice(0, 3);
-      setTestimonials(positiveTestimonials);
+      // Sort testimonials by createdAt descending and get the last one
+      allTestimonials.sort((a, b) => new Date(b.createdAt.seconds * 1000) - new Date(a.createdAt.seconds * 1000));
+      setTestimonials(allTestimonials.slice(0, 1)); // Only the most recent testimonial
+
+      // Get the last listed job (assuming sorted by createdAt or id)
+      if (jobsData.length > 0) {
+        jobsData.sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt.seconds * 1000) - new Date(a.createdAt.seconds * 1000);
+          }
+          return b.id.localeCompare(a.id); // Fallback to id
+        });
+        setLastJob(jobsData[0]);
+      }
     } catch (error) {
       console.error('Error fetching testimonials:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'jobs'), (querySnapshot) => {
+      const allTestimonials = [];
+      let jobsData = [];
+      querySnapshot.forEach((doc) => {
+        const job = doc.data();
+        jobsData.push({ id: doc.id, ...job });
+        if (job.testimonials) {
+          job.testimonials.forEach((testimonial) => {
+            allTestimonials.push({
+              ...testimonial,
+              jobTitle: job.title,
+            });
+          });
+        }
+      });
+      // Sort testimonials by createdAt descending and get the last one
+      allTestimonials.sort((a, b) => new Date(b.createdAt.seconds * 1000) - new Date(a.createdAt.seconds * 1000));
+      setTestimonials(allTestimonials.slice(0, 1)); // Only the most recent testimonial
+
+      // Get the last listed job
+      if (jobsData.length > 0) {
+        jobsData.sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt.seconds * 1000) - new Date(a.createdAt.seconds * 1000);
+          }
+          return b.id.localeCompare(a.id); // Fallback to id
+        });
+        setLastJob(jobsData[0]);
+      }
+    }, (error) => {
+      console.error('Error listening to testimonials:', error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTestimonials();
+    setRefreshing(false);
+  }, [fetchTestimonials]);
 
   const handleLogout = () => {
     auth.signOut();
@@ -52,7 +106,12 @@ const DashboardScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.header}>
           <Title style={styles.welcomeTitle}>Welcome, {auth.currentUser?.email?.split('@')[0] || 'User'}!</Title>
         </View>
@@ -67,8 +126,22 @@ const DashboardScreen = ({ navigation }) => {
             </Card>
           ))}
         </View>
+        {lastJob && (
+          <View style={styles.lastJobSection}>
+            <Title style={styles.sectionTitle}>Latest Job</Title>
+            <Card style={styles.jobCard} onPress={() => navigation.navigate('JobDetails', { job: lastJob })}>
+              <Card.Content>
+                <Title>{lastJob.title}</Title>
+                <Paragraph>{lastJob.description}</Paragraph>
+                <Paragraph>Job Type: {lastJob.jobType}</Paragraph>
+                <Paragraph>Pay: ${lastJob.pay} {lastJob.payFrequency ? `per ${lastJob.payFrequency}` : ''}</Paragraph>
+                <Paragraph>Status: {lastJob.status}</Paragraph>
+              </Card.Content>
+            </Card>
+          </View>
+        )}
         <View style={styles.testimonialsSection}>
-          <Title style={styles.sectionTitle}>Testimonials</Title>
+          <Title style={styles.sectionTitle}>Latest Testimonial</Title>
           {testimonials.length > 0 ? (
             testimonials.map((testimonial, index) => (
               <Card key={index} style={styles.testimonialCard}>
@@ -82,6 +155,9 @@ const DashboardScreen = ({ navigation }) => {
           ) : (
             <Paragraph style={styles.noTestimonialsText}>No testimonials yet. Be the first to leave one!</Paragraph>
           )}
+          <Button mode="outlined" onPress={() => navigation.navigate('AllTestimonials')} style={styles.viewAllButton}>
+            View All Testimonials
+          </Button>
         </View>
       </ScrollView>
 
@@ -114,6 +190,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  lastJobSection: {
+    marginBottom: 20,
+  },
+  jobCard: {
+    marginBottom: 10,
+    elevation: 2,
+    backgroundColor: '#fff',
+  },
   testimonialsSection: {
     marginBottom: 40, // Add bottom margin for nav/tab bar
   },
@@ -132,6 +216,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     color: '#666',
+  },
+  viewAllButton: {
+    marginTop: 10,
   },
   grid: {
     flexDirection: 'row',

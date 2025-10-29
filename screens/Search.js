@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
+import { View, FlatList, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph, Searchbar, TouchableRipple } from 'react-native-paper';
 import * as Location from 'expo-location';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 
 const SearchScreen = ({ navigation }) => {
@@ -21,7 +21,8 @@ const SearchScreen = ({ navigation }) => {
 
   const fetchJobs = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'jobs'));
+      const q = query(collection(db, 'jobs'), where('completed', '==', false));
+      const querySnapshot = await getDocs(q);
       const jobsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const jobsWithAddresses = await Promise.all(jobsData.map(async (job) => {
         try {
@@ -86,13 +87,19 @@ const SearchScreen = ({ navigation }) => {
         value={searchQuery}
         style={styles.searchbar}
       />
-      <FlatList
-        data={filteredJobs}
-        renderItem={renderJobItem}
-        keyExtractor={item => item.id}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-      />
+      {filteredJobs.length === 0 ? (
+        <View style={styles.noJobsContainer}>
+          <Text style={styles.noJobsText}>No jobs available at the moment.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredJobs}
+          renderItem={renderJobItem}
+          keyExtractor={item => item.id}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -115,6 +122,16 @@ const styles = StyleSheet.create({
   card: {
     margin: 10,
     elevation: 4,
+  },
+  noJobsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noJobsText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
