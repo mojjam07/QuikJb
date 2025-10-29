@@ -1,0 +1,5 @@
+- [x] Update firebaseConfig.js to import initializeAuth, getReactNativePersistence, and AsyncStorage
+- [x] Replace getAuth(app) with initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) })
+- [x] Remove unused getAuth import
+- [x] Remove navigation.replace('JobList') from Signup.js and Login.js
+- [x] Display user's email in JobList header
