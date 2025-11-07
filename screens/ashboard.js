@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Alert } from 'react-native';
 import { Card, Title, Paragraph, Button, FAB, Avatar } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, getDocs } from 'firebase/firestore';
@@ -38,7 +38,22 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleLogout = () => {
-    auth.signOut();
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          onPress: () => auth.signOut(),
+          style: 'destructive',
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   const numColumns = width > 600 ? 3 : 2;

@@ -38,17 +38,33 @@ const JobDetailsScreen = ({ route, navigation }) => {
       Alert.alert('Not authorized');
       return;
     }
-    try {
-      const jobRef = doc(db, 'jobs', currentJob.id);
-      await updateDoc(jobRef, {
-        status: 'completed',
-      });
-      setCurrentJob({ ...currentJob, status: 'completed' });
-      Alert.alert('Success', 'Job marked as completed!');
-      navigation.navigate('Testimonial', { jobId: currentJob.id });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to mark job as completed.');
-    }
+    Alert.alert(
+      'Confirm Completion',
+      'Are you sure you want to mark this job as completed?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Mark Completed',
+          onPress: async () => {
+            try {
+              const jobRef = doc(db, 'jobs', currentJob.id);
+              await updateDoc(jobRef, {
+                status: 'completed',
+              });
+              setCurrentJob({ ...currentJob, status: 'completed' });
+              Alert.alert('Success', 'Job marked as completed!');
+              navigation.navigate('Testimonial', { jobId: currentJob.id });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to mark job as completed.');
+            }
+          },
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   const renderTestimonial = ({ item }) => (
@@ -71,20 +87,25 @@ const JobDetailsScreen = ({ route, navigation }) => {
             <Paragraph>Pay: ${currentJob.pay} {currentJob.payFrequency ? `per ${currentJob.payFrequency}` : ''}</Paragraph>
             <Paragraph>Location: {currentJob.address || `${currentJob.location.lat.toFixed(4)}, ${currentJob.location.lng.toFixed(4)}`}</Paragraph>
             <Paragraph>Status: {currentJob.status}</Paragraph>
-            {currentJob.status !== 'completed' && (
+            {/* {currentJob.status === 'available' && (
               <Paragraph>Contact: {currentJob.contact}</Paragraph>
-            )}
-            {currentJob.status === 'available' && (
+            )} */}
+            {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
               <Button mode="contained" onPress={handleTakeJob} style={styles.button}>
                 Take Job
               </Button>
             )}
             {currentJob.status === 'taken' && currentJob.assignedUser === auth.currentUser.uid && (
-              <Button mode="contained" onPress={handleMarkCompleted} style={styles.button}>
-                Mark as Completed
-              </Button>
+              <View style={styles.buttonContainer}>
+                <Button mode="contained" disabled style={styles.disabledButton}>
+                  Job Taken
+                </Button>
+                <Button mode="contained" onPress={handleMarkCompleted} style={styles.button}>
+                  Mark as Completed
+                </Button>
+              </View>
             )}
-            {currentJob.status !== 'completed' && (
+            {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
               <Button mode="outlined" onPress={handleCall} style={styles.button}>
                 Call Now
               </Button>
@@ -121,6 +142,16 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  disabledButton: {
+    marginTop: 10,
+    flex: 1,
+    marginRight: 5,
   },
   testimonialsContainer: {
     margin: 20,

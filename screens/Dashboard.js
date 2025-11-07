@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph, Button, FAB } from 'react-native-paper';
 import { collection, onSnapshot, getDocs } from 'firebase/firestore';
@@ -92,7 +92,23 @@ const DashboardScreen = ({ navigation }) => {
   }, [fetchTestimonials]);
 
   const handleLogout = () => {
-    auth.signOut();
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          onPress: () => {
+            auth.signOut();
+          },
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   const numColumns = width > 600 ? 3 : 2; // 3 columns for tablets/web, 2 for phones

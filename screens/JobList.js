@@ -11,6 +11,9 @@ const JobListScreen = ({ navigation }) => {
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState(null);
+  const [userState, setUserState] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     getLocationPermission();
@@ -19,7 +22,8 @@ const JobListScreen = ({ navigation }) => {
 
   useEffect(() => {
     filterJobs();
-  }, [jobs, searchQuery]);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [jobs, searchQuery, userState]);
 
   const getLocationPermission = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -29,6 +33,11 @@ const JobListScreen = ({ navigation }) => {
     }
     let location = await Location.getCurrentPositionAsync({});
     setLocation(location.coords);
+    // Also set user state for filtering
+    const result = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+    if (result[0] && result[0].region) {
+      setUserState(result[0].region);
+    }
   };
 
   const fetchJobs = async () => {
@@ -53,10 +62,11 @@ const JobListScreen = ({ navigation }) => {
               return `${city || region || 'Unknown'}`;
             }
           })() : `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}`;
-          return { ...job, address };
+          const state = result[0] && result[0].region ? result[0].region : 'Unknown';
+          return { ...job, address, state };
         } catch (error) {
           console.error('Error reverse geocoding:', error);
-          return { ...job, address: `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}` };
+          return { ...job, address: `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}`, state: 'Unknown' };
         }
       }));
       setJobs(jobsWithAddresses);
@@ -76,6 +86,10 @@ const JobListScreen = ({ navigation }) => {
         return distance <= 10; // 10km radius
       });
     }
+    // Filter by user's state if available
+    if (userState) {
+      filtered = filtered.filter(job => job.state === userState);
+    }
     setFilteredJobs(filtered);
   };
 
@@ -93,6 +107,26 @@ const JobListScreen = ({ navigation }) => {
 
   const deg2rad = (deg) => {
     return deg * (Math.PI / 180);
+  };
+
+  const getPaginatedJobs = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredJobs.slice(startIndex, endIndex);
+  };
+
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
   const handleContact = (contact) => {
@@ -130,12 +164,35 @@ const JobListScreen = ({ navigation }) => {
         style={styles.searchbar}
       />
       <FlatList
-        data={filteredJobs}
+        data={getPaginatedJobs()}
         renderItem={renderJobItem}
         keyExtractor={item => item.id}
         style={styles.list}
         contentContainerStyle={styles.listContent}
       />
+      {totalPages > 1 && (
+        <View style={styles.paginationContainer}>
+          <Button
+            mode="outlined"
+            onPress={handlePreviousPage}
+            disabled={currentPage === 1}
+            style={styles.pageButton}
+            icon="chevron-left"
+          >
+          </Button>
+          <Text style={styles.pageText}>
+            Page {currentPage} of {totalPages}
+          </Text>
+          <Button
+            mode="outlined"
+            onPress={handleNextPage}
+            disabled={currentPage === totalPages}
+            style={styles.pageButton}
+            icon="chevron-right"
+          >
+          </Button>
+        </View>
+      )}
       <FAB
         style={styles.fab}
         icon="plus"
@@ -184,6 +241,25 @@ const styles = StyleSheet.create({
   },
   button: {
     marginHorizontal: 10,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  pageButton: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  pageText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
   },
 });
 

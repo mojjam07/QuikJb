@@ -52,7 +52,10 @@ const TestimonialScreen = ({ route, navigation }) => {
               <TextInput
                 label="Rating (1-5)"
                 value={rating.toString()}
-                onChangeText={(text) => setRating(Math.min(5, Math.max(1, parseInt(text) || 1)))}
+                onChangeText={(text) => {
+                  const num = parseInt(text) || 1;
+                  setRating(Math.min(5, Math.max(1, num)));
+                }}
                 keyboardType="numeric"
                 style={styles.ratingInput}
               />

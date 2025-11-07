@@ -1,13 +1,9 @@
-# TODO List for Dashboard Modifications
+# TODO: Implement Location-Based Job Filtering by State
 
-## Tasks
-- [x] Create AllTestimonials.js screen to display all testimonials
-- [x] Update Dashboard.js to fetch and display the last testimonial (most recent by createdAt)
-- [x] Update Dashboard.js to fetch and display the last listed job (most recent by createdAt or id)
-- [x] Add "View All Testimonials" button in Dashboard testimonials section
-- [x] Update App.js to include AllTestimonials screen in navigation
-
-## Followup Steps
-- [ ] Test the app to ensure dashboard displays last testimonial and last job correctly
-- [ ] Verify navigation to AllTestimonials screen works
-- [ ] Check that testimonials are sorted by most recent in AllTestimonials screen
+## Steps to Complete:
+- [x] Request location permissions and fetch user's current state (region) on component mount in Search.js
+- [x] Update fetchJobs function to add a 'state' field to each job object using the region from reverse geocoding
+- [x] Update filterJobs function to include filtering by user's state, combined with existing search query
+- [x] Handle case where location permission is denied: default to showing all jobs without state filtering
+- [x] Apply the same location-based filtering to JobList.js
+- [ ] Test the implementation to ensure jobs display based on user's state location in both Search and JobList screens

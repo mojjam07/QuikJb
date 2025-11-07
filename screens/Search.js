@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Title, Paragraph, Searchbar, TouchableRipple } from 'react-native-paper';
+import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button } from 'react-native-paper';
 import * as Location from 'expo-location';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -10,18 +10,40 @@ const SearchScreen = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userState, setUserState] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
+    fetchUserLocation();
     fetchJobs();
   }, []);
 
   useEffect(() => {
     filterJobs();
-  }, [jobs, searchQuery]);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [jobs, searchQuery, userState]);
+
+  const fetchUserLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      const result = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+      if (result[0] && result[0].region) {
+        setUserState(result[0].region);
+      }
+    } catch (error) {
+      console.error('Error fetching user location:', error);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
-      const q = query(collection(db, 'jobs'), where('completed', '==', false));
+      const q = query(collection(db, 'jobs'), where('status', '==', 'completed'));
       const querySnapshot = await getDocs(q);
       const jobsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const jobsWithAddresses = await Promise.all(jobsData.map(async (job) => {
@@ -40,10 +62,11 @@ const SearchScreen = ({ navigation }) => {
               return `${city || region || 'Unknown'}`;
             }
           })() : `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}`;
-          return { ...job, address };
+          const state = result[0] && result[0].region ? result[0].region : 'Unknown';
+          return { ...job, address, state };
         } catch (error) {
           console.error('Error reverse geocoding:', error);
-          return { ...job, address: `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}` };
+          return { ...job, address: `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}`, state: 'Unknown' };
         }
       }));
       setJobs(jobsWithAddresses);
@@ -53,15 +76,42 @@ const SearchScreen = ({ navigation }) => {
   };
 
   const filterJobs = () => {
+    let filtered = jobs;
+
+    // Filter by search query
     if (searchQuery) {
-      const filtered = jobs.filter(job =>
+      filtered = filtered.filter(job =>
         job.jobType.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredJobs(filtered);
-    } else {
-      setFilteredJobs(jobs);
+    }
+
+    // Filter by user's state if available
+    if (userState) {
+      filtered = filtered.filter(job => job.state === userState);
+    }
+
+    setFilteredJobs(filtered);
+  };
+
+  const getPaginatedJobs = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredJobs.slice(startIndex, endIndex);
+  };
+
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
     }
   };
 
@@ -89,16 +139,41 @@ const SearchScreen = ({ navigation }) => {
       />
       {filteredJobs.length === 0 ? (
         <View style={styles.noJobsContainer}>
-          <Text style={styles.noJobsText}>No jobs available at the moment.</Text>
+          <Text style={styles.noJobsText}>No completed jobs available at the moment.</Text>
         </View>
       ) : (
-        <FlatList
-          data={filteredJobs}
-          renderItem={renderJobItem}
-          keyExtractor={item => item.id}
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-        />
+        <View style={styles.container}>
+          <FlatList
+            data={getPaginatedJobs()}
+            renderItem={renderJobItem}
+            keyExtractor={item => item.id}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+          />
+          {totalPages > 1 && (
+            <View style={styles.paginationContainer}>
+              <Button
+                mode="outlined"
+                onPress={handlePreviousPage}
+                disabled={currentPage === 1}
+                style={styles.pageButton}
+                icon="chevron-left"
+              >
+              </Button>
+              <Text style={styles.pageText}>
+                Page {currentPage} of {totalPages}
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={handleNextPage}
+                disabled={currentPage === totalPages}
+                style={styles.pageButton}
+                icon="chevron-right"
+              >
+              </Button>
+            </View>
+          )}
+        </View>
       )}
     </SafeAreaView>
   );
@@ -132,6 +207,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#666',
     textAlign: 'center',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  pageButton: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  pageText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
   },
 });
 
