@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, RefreshControl, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, RefreshControl, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph, Button, FAB } from 'react-native-paper';
 import { collection, onSnapshot, getDocs } from 'firebase/firestore';
@@ -129,6 +129,9 @@ const DashboardScreen = ({ navigation }) => {
         }
       >
         <View style={styles.header}>
+          <Image source={require('../assets/logo1.png')} style={styles.logo} />
+          {/* <Title style={styles.brandName}>Quick-Job</Title> */}
+          <Paragraph style={styles.subtitle}>Connect Employers with Workers Instantly</Paragraph>
           <Title style={styles.welcomeTitle}>Welcome, {auth.currentUser?.email?.split('@')[0] || 'User'}!</Title>
         </View>
         <View style={styles.grid}>
@@ -201,8 +204,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingTop: 20,
   },
-  welcomeTitle: {
+  logo: {
+    width: 150,
+    height: 100,
+    marginBottom: 10,
+  },
+  brandName: {
     fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  welcomeTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },

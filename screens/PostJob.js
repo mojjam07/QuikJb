@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TextInput, Button, Card, Title, RadioButton, ActivityIndicator, Snackbar } from 'react-native-paper';
+import { TextInput, Button, Card, Title, RadioButton, ActivityIndicator, Snackbar, Text } from 'react-native-paper';
 import * as Location from 'expo-location';
 import { collection, addDoc } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
@@ -45,6 +45,11 @@ const PostJobScreen = ({ navigation }) => {
   };
 
   const handlePostJob = async () => {
+    if (!auth.currentUser) {
+      setError('You must be logged in to post a job.');
+      return;
+    }
+
     const errors = validateJobPost(title, description, jobType, pay, contact);
     if (Object.keys(errors).length > 0) {
       const errorMessage = Object.values(errors).join('\n');
@@ -156,29 +161,37 @@ const PostJobScreen = ({ navigation }) => {
               accessibilityLabel="Enter contact phone number"
               accessibilityHint="Provide your phone number for job applicants to contact you"
             />
-            <Button
-              mode="contained"
-              onPress={getLocation}
-              style={styles.button}
-              loading={locationLoading}
-              disabled={locationLoading}
-              accessibilityLabel={locationLoading ? "Getting location" : "Get current location"}
-              accessibilityHint="Fetch your current location to include with the job posting"
-            >
-              {locationLoading ? 'Getting Location...' : 'Get Current Location'}
-            </Button>
-            {location && (
+            {!location && (
               <Button
                 mode="contained"
-                onPress={handlePostJob}
+                onPress={getLocation}
                 style={styles.button}
-                loading={postingLoading}
-                disabled={postingLoading}
-                accessibilityLabel={postingLoading ? "Posting job" : "Post job"}
-                accessibilityHint="Submit the job posting to make it available to workers"
+                loading={locationLoading}
+                disabled={locationLoading}
+                accessibilityLabel={locationLoading ? "Getting location" : "Get current location"}
+                accessibilityHint="Fetch your current location to include with the job posting"
               >
-                {postingLoading ? 'Posting Job...' : 'Post Job'}
+                {locationLoading ? 'Getting Location...' : 'Get Current Location'}
               </Button>
+            )}
+            {location && (
+              <View>
+                <Title style={styles.locationTitle}>Current Location:</Title>
+                <Text style={styles.locationText}>
+                  Latitude: {location.latitude.toFixed(6)}, Longitude: {location.longitude.toFixed(6)}
+                </Text>
+                <Button
+                  mode="contained"
+                  onPress={handlePostJob}
+                  style={styles.button}
+                  loading={postingLoading}
+                  disabled={postingLoading}
+                  accessibilityLabel={postingLoading ? "Posting job" : "Post job"}
+                  accessibilityHint="Submit the job posting to make it available to workers"
+                >
+                  {postingLoading ? 'Posting Job...' : 'Post Job'}
+                </Button>
+              </View>
             )}
           </Card.Content>
         </Card>
@@ -246,6 +259,19 @@ const styles = StyleSheet.create({
   radioLabel: {
     fontSize: 14,
     marginLeft: 8,
+  },
+  locationTitle: {
+    fontSize: 16,
+    marginTop: 10,
+    marginBottom: 5,
+    textAlign: 'center',
+    color: '#4CAF50',
+  },
+  locationText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#666',
   },
 });
 

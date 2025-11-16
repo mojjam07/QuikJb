@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TextInput, Button, Title, Card } from 'react-native-paper';
+import { TextInput, Button, Title, Card, Paragraph } from 'react-native-paper';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 import { validateLogin } from '../utils/validation';
@@ -50,9 +50,14 @@ const LoginScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
+        <View style={styles.brandingContainer}>
+          <Image source={require('../assets/logo1.png')} style={styles.logo} />
+          {/* <Title style={styles.brandName}>Quick-Job</Title> */}
+          <Paragraph style={styles.subtitle}>Enter Your Registered Data to Continue Using</Paragraph>
+        </View>
         <Card style={styles.card}>
           <Card.Content>
-            <Title style={styles.title}>Login</Title>
+            {/* <Title style={styles.title}>Login</Title> */}
             <TextInput
               label="Email"
               value={email}
@@ -93,6 +98,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+  },
+  brandingContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  logo: {
+    width: 150,
+    height: 100,
+    marginBottom: 10,
+  },
+  brandName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   card: {
     elevation: 4,

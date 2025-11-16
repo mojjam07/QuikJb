@@ -10,42 +10,14 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isValidPhoneNumber(phone) {
-      return phone is string && phone.matches('^\\+?[\\d\\s\\-\\(\\)\\+]{10,}$');
-    }
-
     function isValidPayAmount(pay) {
-      return pay is float && pay > 0;
-    }
-
-    function canRateLimit(userId) {
-      // Allow max 5 job posts per hour per user
-      let lastHour = get(/databases/$(database)/documents/rate_limits/$(userId)).data;
-      let currentTime = request.time.toMillis();
-      let hourAgo = currentTime - (60 * 60 * 1000);
-
-      return !exists(/databases/$(database)/documents/rate_limits/$(userId)) ||
-             lastHour.lastPost.toMillis() < hourAgo ||
-             lastHour.count < 5;
-    }
-
-    function updateRateLimit(userId) {
-      let currentTime = request.time.toMillis();
-      let rateLimitDoc = get(/databases/$(database)/documents/rate_limits/$(userId)).data;
-
-      return !exists(/databases/$(database)/documents/rate_limits/$(userId)) ||
-             {
-               lastPost: request.time,
-               count: rateLimitDoc.count + 1
-             };
+      return pay is number && pay > 0;
     }
 
     match /jobs/{jobId} {
       allow read: if true;
 
       allow create: if isAuthenticated() &&
-                       canRateLimit(request.auth.uid) &&
-                       isValidPhoneNumber(request.resource.data.contact) &&
                        isValidPayAmount(request.resource.data.pay) &&
                        request.resource.data.title is string &&
                        request.resource.data.title.size() > 0 &&
@@ -64,10 +36,6 @@ service cloud.firestore {
       );
 
       allow delete: if isOwner(resource.data.postedBy);
-    }
-
-    match /rate_limits/{userId} {
-      allow read, write: if isOwner(userId);
     }
   }
 }
