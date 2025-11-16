@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, Image } from 'react-native';
+import { View, StyleSheet, Alert, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Title, Card, Paragraph } from 'react-native-paper';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
@@ -11,6 +11,9 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const { width, height } = Dimensions.get('window');
+  const isTablet = width > 768;
+  const logoSize = isTablet ? Math.min(width * 0.4, height * 0.2) : Math.min(width * 0.4, height * 0.2);
 
   const handleLogin = async () => {
     const errors = validateLogin(email, password);
@@ -51,9 +54,9 @@ const LoginScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.brandingContainer}>
-          <Image source={require('../assets/logo1.png')} style={styles.logo} />
-          {/* <Title style={styles.brandName}>Quick-Job</Title> */}
-          <Paragraph style={styles.subtitle}>Enter Your Registered Data to Continue Using</Paragraph>
+          <Image source={require('../assets/logo1.png')} style={[styles.logo, { width: logoSize, height: logoSize }]} />
+          {/* <Title style={[styles.brandName, isTablet && styles.brandNameTablet]}>Quick-Job</Title> */}
+          <Paragraph style={[styles.subtitle, isTablet && styles.subtitleTablet]}>Enter Your Registered Data to Continue Using</Paragraph>
         </View>
         <Card style={styles.card}>
           <Card.Content>
@@ -104,9 +107,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logo: {
-    width: 150,
-    height: 100,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   brandName: {
     fontSize: 28,
@@ -114,11 +115,17 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
+  brandNameTablet: {
+    fontSize: 32,
+  },
   subtitle: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  subtitleTablet: {
+    fontSize: 18,
   },
   card: {
     elevation: 4,

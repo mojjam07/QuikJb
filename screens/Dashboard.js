@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph, Button, FAB } from 'react-native-paper';
 import { collection, onSnapshot, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -11,6 +12,9 @@ const DashboardScreen = ({ navigation }) => {
   const [testimonials, setTestimonials] = useState([]);
   const [lastJob, setLastJob] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { width, height } = Dimensions.get('window');
+  const isTablet = width > 768;
+  const logoSize = isTablet ? Math.min(width * 0.4, height * 0.1) : Math.min(width * 0.4, height * 0.2);
 
   const fetchTestimonials = useCallback(async () => {
     try {
@@ -121,7 +125,7 @@ const DashboardScreen = ({ navigation }) => {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} >
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         refreshControl={
@@ -129,10 +133,10 @@ const DashboardScreen = ({ navigation }) => {
         }
       >
         <View style={styles.header}>
-          <Image source={require('../assets/logo1.png')} style={styles.logo} />
-          {/* <Title style={styles.brandName}>Quick-Job</Title> */}
-          <Paragraph style={styles.subtitle}>Connect Employers with Workers Instantly</Paragraph>
-          <Title style={styles.welcomeTitle}>Welcome, {auth.currentUser?.email?.split('@')[0] || 'User'}!</Title>
+          <Image source={require('../assets/logo1.png')} style={[styles.logo, { width: logoSize, height: logoSize }]} />
+          {/* <Title style={[styles.brandName, isTablet && styles.brandNameTablet]}>Quick-Job</Title> */}
+          <Paragraph style={[styles.subtitle, isTablet && styles.subtitleTablet]}>Connect Employers with Workers Instantly</Paragraph>
+          <Title style={[styles.welcomeTitle, isTablet && styles.welcomeTitleTablet]}>Welcome, {auth.currentUser?.email?.split('@')[0] || 'User'}!</Title>
         </View>
         <View style={styles.grid}>
           {menuItems.map((item, index) => (
@@ -205,8 +209,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   logo: {
-    width: 150,
-    height: 100,
     marginBottom: 10,
   },
   brandName: {
@@ -215,6 +217,9 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
+  brandNameTablet: {
+    fontSize: 28,
+  },
   subtitle: {
     fontSize: 14,
     color: '#666',
@@ -222,10 +227,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 10,
   },
+  subtitleTablet: {
+    fontSize: 16,
+  },
   welcomeTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
+  },
+  welcomeTitleTablet: {
+    fontSize: 24,
   },
   lastJobSection: {
     marginBottom: 20,
