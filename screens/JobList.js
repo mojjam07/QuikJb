@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, Alert, Linking } from 'react-native';
+import { View, FlatList, StyleSheet, Alert, Linking, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Title, Paragraph, Button, FAB, Searchbar, TouchableRipple, Text } from 'react-native-paper';
+import { Card, Title, Paragraph, Button, FAB, Searchbar, TouchableRipple, Text, ActivityIndicator, Snackbar } from 'react-native-paper';
 import * as Location from 'expo-location';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
@@ -14,6 +14,12 @@ const JobListScreen = ({ navigation }) => {
   const [userState, setUserState] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [loading, setLoading] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [retryFunction, setRetryFunction] = useState(null);
+  const { width } = Dimensions.get('window');
+  const isTablet = width > 768;
 
   useEffect(() => {
     getLocationPermission();
@@ -26,21 +32,33 @@ const JobListScreen = ({ navigation }) => {
   }, [jobs, searchQuery, userState]);
 
   const getLocationPermission = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Location permission is required to find nearby jobs.');
-      return;
-    }
-    let location = await Location.getCurrentPositionAsync({});
-    setLocation(location.coords);
-    // Also set user state for filtering
-    const result = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
-    if (result[0] && result[0].region) {
-      setUserState(result[0].region);
+    setLocationLoading(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Location permission is required to find nearby jobs. Please enable location services.');
+        setRetryFunction(() => getLocationPermission);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location.coords);
+      // Also set user state for filtering
+      const result = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+      if (result[0] && result[0].region) {
+        setUserState(result[0].region);
+      }
+      setError(null);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setError('Failed to get your location. Please check your internet connection and try again.');
+      setRetryFunction(() => getLocationPermission);
+    } finally {
+      setLocationLoading(false);
     }
   };
 
   const fetchJobs = async () => {
+    setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'jobs'));
       const jobsData = querySnapshot.docs
@@ -70,8 +88,13 @@ const JobListScreen = ({ navigation }) => {
         }
       }));
       setJobs(jobsWithAddresses);
+      setError(null);
     } catch (error) {
       console.error('Error fetching jobs:', error);
+      setError('Failed to load jobs. Please check your internet connection and try again.');
+      setRetryFunction(() => fetchJobs);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -136,21 +159,50 @@ const JobListScreen = ({ navigation }) => {
   };
 
   const renderJobItem = ({ item }) => (
-    <Card style={styles.card}>
-      <TouchableRipple onPress={() => navigation.navigate('JobDetails', { job: item })}>
+    <Card style={[styles.card, isTablet && styles.cardTablet]}>
+      <TouchableRipple
+        onPress={() => navigation.navigate('JobDetails', { job: item })}
+        accessibilityLabel={`View details for ${item.title} job`}
+        accessibilityHint="Opens job details screen"
+      >
         <Card.Content>
-          <Title>{item.title}</Title>
-          <Paragraph>{item.description}</Paragraph>
-          <Paragraph>Job Type: {item.jobType}</Paragraph>
-          <Paragraph>Pay: ${item.pay} {item.payFrequency ? `per ${item.payFrequency}` : ''}</Paragraph>
-          <Paragraph>Location: {item.address}</Paragraph>
-          <Paragraph>Status: {item.status}</Paragraph>
+          <Title accessibilityLabel={`Job title: ${item.title}`}>{item.title}</Title>
+          <Paragraph accessibilityLabel={`Job description: ${item.description}`}>{item.description}</Paragraph>
+          <Paragraph accessibilityLabel={`Job type: ${item.jobType}`}>Job Type: {item.jobType}</Paragraph>
+          <Paragraph accessibilityLabel={`Pay: ${item.pay} dollars ${item.payFrequency ? `per ${item.payFrequency}` : ''}`}>
+            Pay: ${item.pay} {item.payFrequency ? `per ${item.payFrequency}` : ''}
+          </Paragraph>
+          <Paragraph accessibilityLabel={`Location: ${item.address}`}>Location: {item.address}</Paragraph>
+          <Paragraph accessibilityLabel={`Status: ${item.status}`}>Status: {item.status}</Paragraph>
         </Card.Content>
       </TouchableRipple>
       <Card.Actions>
-        <Button mode="contained" onPress={() => handleContact(item.contact)} style={styles.button} disabled={item.status === 'completed'}>
+        <Button
+          mode="contained"
+          onPress={() => handleContact(item.contact)}
+          style={styles.button}
+          disabled={item.status === 'completed'}
+          accessibilityLabel={item.status === 'completed' ? 'Job completed' : 'Contact employer'}
+          accessibilityHint={item.status === 'completed' ? 'This job is no longer available' : 'Opens phone dialer to call employer'}
+        >
           Contact
         </Button>
+      </Card.Actions>
+    </Card>
+  );
+
+  const renderSkeletonItem = () => (
+    <Card style={[styles.card, isTablet && styles.cardTablet]}>
+      <Card.Content>
+        <View style={[styles.skeleton, { height: 24, width: '80%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '100%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '60%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '40%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '70%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '30%', marginBottom: 8 }]} />
+      </Card.Content>
+      <Card.Actions>
+        <View style={[styles.skeleton, { height: 36, width: '100%', marginBottom: 8 }]} />
       </Card.Actions>
     </Card>
   );
@@ -162,25 +214,41 @@ const JobListScreen = ({ navigation }) => {
         onChangeText={setSearchQuery}
         value={searchQuery}
         style={styles.searchbar}
+        accessibilityLabel="Search jobs by type"
+        accessibilityHint="Enter text to filter jobs by job type"
       />
-      <FlatList
-        data={getPaginatedJobs()}
-        renderItem={renderJobItem}
-        keyExtractor={item => item.id}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-      />
-      {totalPages > 1 && (
-        <View style={styles.paginationContainer}>
+      {loading ? (
+        <View style={styles.container}>
+          <FlatList
+            data={Array.from({ length: 5 }, (_, i) => ({ id: i.toString() }))}
+            renderItem={renderSkeletonItem}
+            keyExtractor={item => item.id}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
+      ) : (
+        <FlatList
+          data={getPaginatedJobs()}
+          renderItem={renderJobItem}
+          keyExtractor={item => item.id}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+      {totalPages > 1 && !loading && (
+        <View style={[styles.paginationContainer, isTablet && styles.paginationTablet]}>
           <Button
             mode="outlined"
             onPress={handlePreviousPage}
             disabled={currentPage === 1}
             style={styles.pageButton}
             icon="chevron-left"
+            accessibilityLabel="Previous page"
+            accessibilityHint="Go to previous page of jobs"
           >
           </Button>
-          <Text style={styles.pageText}>
+          <Text style={styles.pageText} accessibilityLabel={`Page ${currentPage} of ${totalPages}`}>
             Page {currentPage} of {totalPages}
           </Text>
           <Button
@@ -189,15 +257,33 @@ const JobListScreen = ({ navigation }) => {
             disabled={currentPage === totalPages}
             style={styles.pageButton}
             icon="chevron-right"
+            accessibilityLabel="Next page"
+            accessibilityHint="Go to next page of jobs"
           >
           </Button>
         </View>
       )}
       <FAB
-        style={styles.fab}
+        style={[styles.fab, isTablet && styles.fabTablet]}
         icon="plus"
         onPress={() => navigation.navigate('PostJob')}
+        accessibilityLabel="Post new job"
+        accessibilityHint="Opens screen to create a new job posting"
       />
+      <Snackbar
+        visible={!!error}
+        onDismiss={() => setError(null)}
+        action={{
+          label: 'Retry',
+          onPress: () => {
+            setError(null);
+            if (retryFunction) retryFunction();
+          },
+        }}
+        accessibilityLabel={`Error: ${error}`}
+      >
+        {error}
+      </Snackbar>
     </SafeAreaView>
   );
 };
@@ -232,12 +318,26 @@ const styles = StyleSheet.create({
     margin: 10,
     elevation: 4,
   },
+  cardTablet: {
+    marginHorizontal: 20,
+    maxWidth: 600,
+    alignSelf: 'center',
+  },
+  skeleton: {
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
   fab: {
     position: 'absolute',
     margin: 16,
     marginBottom: 70,
     right: 0,
     bottom: 0,
+  },
+  fabTablet: {
+    margin: 24,
+    marginBottom: 80,
   },
   button: {
     marginHorizontal: 10,
@@ -251,6 +351,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+  },
+  paginationTablet: {
+    paddingHorizontal: 40,
   },
   pageButton: {
     flex: 1,

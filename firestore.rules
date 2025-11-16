@@ -1,18 +1,73 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidPhoneNumber(phone) {
+      return phone is string && phone.matches('^\\+?[\\d\\s\\-\\(\\)\\+]{10,}$');
+    }
+
+    function isValidPayAmount(pay) {
+      return pay is float && pay > 0;
+    }
+
+    function canRateLimit(userId) {
+      // Allow max 5 job posts per hour per user
+      let lastHour = get(/databases/$(database)/documents/rate_limits/$(userId)).data;
+      let currentTime = request.time.toMillis();
+      let hourAgo = currentTime - (60 * 60 * 1000);
+
+      return !exists(/databases/$(database)/documents/rate_limits/$(userId)) ||
+             lastHour.lastPost.toMillis() < hourAgo ||
+             lastHour.count < 5;
+    }
+
+    function updateRateLimit(userId) {
+      let currentTime = request.time.toMillis();
+      let rateLimitDoc = get(/databases/$(database)/documents/rate_limits/$(userId)).data;
+
+      return !exists(/databases/$(database)/documents/rate_limits/$(userId)) ||
+             {
+               lastPost: request.time,
+               count: rateLimitDoc.count + 1
+             };
+    }
+
     match /jobs/{jobId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && (
-        request.auth.uid == resource.data.postedBy ||
+
+      allow create: if isAuthenticated() &&
+                       canRateLimit(request.auth.uid) &&
+                       isValidPhoneNumber(request.resource.data.contact) &&
+                       isValidPayAmount(request.resource.data.pay) &&
+                       request.resource.data.title is string &&
+                       request.resource.data.title.size() > 0 &&
+                       request.resource.data.description is string &&
+                       request.resource.data.description.size() > 0 &&
+                       request.resource.data.jobType is string &&
+                       request.resource.data.jobType.size() > 0;
+
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.postedBy) ||
         (request.auth.uid == resource.data.assignedUser && (
           (resource.data.status == 'taken' && request.resource.data.status == 'completed') ||
           (resource.data.status == 'completed' && request.resource.data.status == 'completed')
         )) ||
         (resource.data.status == 'available' && request.resource.data.status == 'taken')
       );
-      allow delete: if request.auth != null && request.auth.uid == resource.data.postedBy;
+
+      allow delete: if isOwner(resource.data.postedBy);
+    }
+
+    match /rate_limits/{userId} {
+      allow read, write: if isOwner(userId);
     }
   }
 }

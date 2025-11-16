@@ -23,6 +23,11 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+improvement.txt
+TODO.md 
+TODO-security.md
+TODO-UIUX.md
+
 # debug
 npm-debug.*
 yarn-debug.*

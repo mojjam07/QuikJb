@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, Text } from 'react-native';
+import { View, FlatList, StyleSheet, Text, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button } from 'react-native-paper';
+import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button, ActivityIndicator, Snackbar } from 'react-native-paper';
 import * as Location from 'expo-location';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -13,6 +13,12 @@ const SearchScreen = ({ navigation }) => {
   const [userState, setUserState] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [loading, setLoading] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [retryFunction, setRetryFunction] = useState(null);
+  const { width } = Dimensions.get('window');
+  const isTablet = width > 768;
 
   useEffect(() => {
     fetchUserLocation();
@@ -25,10 +31,12 @@ const SearchScreen = ({ navigation }) => {
   }, [jobs, searchQuery, userState]);
 
   const fetchUserLocation = async () => {
+    setLocationLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Location permission denied');
+        setError('Location permission denied. Please enable location services to find jobs in your area.');
+        setRetryFunction(() => fetchUserLocation);
         return;
       }
       const location = await Location.getCurrentPositionAsync({});
@@ -36,12 +44,18 @@ const SearchScreen = ({ navigation }) => {
       if (result[0] && result[0].region) {
         setUserState(result[0].region);
       }
+      setError(null);
     } catch (error) {
       console.error('Error fetching user location:', error);
+      setError('Failed to get your location. Please check your internet connection and try again.');
+      setRetryFunction(() => fetchUserLocation);
+    } finally {
+      setLocationLoading(false);
     }
   };
 
   const fetchJobs = async () => {
+    setLoading(true);
     try {
       const q = query(collection(db, 'jobs'), where('status', '==', 'completed'));
       const querySnapshot = await getDocs(q);
@@ -70,8 +84,13 @@ const SearchScreen = ({ navigation }) => {
         }
       }));
       setJobs(jobsWithAddresses);
+      setError(null);
     } catch (error) {
       console.error('Error fetching jobs:', error);
+      setError('Failed to load jobs. Please check your internet connection and try again.');
+      setRetryFunction(() => fetchJobs);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -116,17 +135,35 @@ const SearchScreen = ({ navigation }) => {
   };
 
   const renderJobItem = ({ item }) => (
-    <TouchableRipple onPress={() => navigation.navigate('JobDetails', { job: item })}>
-      <Card style={styles.card}>
+    <TouchableRipple
+      onPress={() => navigation.navigate('JobDetails', { job: item })}
+      accessibilityLabel={`View details for ${item.title} job`}
+      accessibilityHint="Opens job details screen"
+    >
+      <Card style={[styles.card, isTablet && styles.cardTablet]}>
         <Card.Content>
-          <Title>{item.title}</Title>
-          <Paragraph>{item.description}</Paragraph>
-          <Paragraph>Job Type: {item.jobType}</Paragraph>
-          <Paragraph>Pay: ${item.pay} {item.payFrequency ? `per ${item.payFrequency}` : ''}</Paragraph>
-          <Paragraph>Location: {item.address}</Paragraph>
+          <Title accessibilityLabel={`Job title: ${item.title}`}>{item.title}</Title>
+          <Paragraph accessibilityLabel={`Job description: ${item.description}`}>{item.description}</Paragraph>
+          <Paragraph accessibilityLabel={`Job type: ${item.jobType}`}>Job Type: {item.jobType}</Paragraph>
+          <Paragraph accessibilityLabel={`Pay: ${item.pay} dollars ${item.payFrequency ? `per ${item.payFrequency}` : ''}`}>
+            Pay: ${item.pay} {item.payFrequency ? `per ${item.payFrequency}` : ''}
+          </Paragraph>
+          <Paragraph accessibilityLabel={`Location: ${item.address}`}>Location: {item.address}</Paragraph>
         </Card.Content>
       </Card>
     </TouchableRipple>
+  );
+
+  const renderSkeletonItem = () => (
+    <Card style={[styles.card, isTablet && styles.cardTablet]}>
+      <Card.Content>
+        <View style={[styles.skeleton, { height: 24, width: '80%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '100%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '60%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '40%', marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { height: 16, width: '70%', marginBottom: 8 }]} />
+      </Card.Content>
+    </Card>
   );
 
   return (
@@ -136,10 +173,24 @@ const SearchScreen = ({ navigation }) => {
         onChangeText={setSearchQuery}
         value={searchQuery}
         style={styles.searchbar}
+        accessibilityLabel="Search jobs"
+        accessibilityHint="Enter text to filter jobs by type, title, or description"
       />
-      {filteredJobs.length === 0 ? (
+      {loading ? (
+        <View style={styles.container}>
+          <FlatList
+            data={Array.from({ length: 5 }, (_, i) => ({ id: i.toString() }))}
+            renderItem={renderSkeletonItem}
+            keyExtractor={item => item.id}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
+      ) : filteredJobs.length === 0 ? (
         <View style={styles.noJobsContainer}>
-          <Text style={styles.noJobsText}>No completed jobs available at the moment.</Text>
+          <Text style={styles.noJobsText} accessibilityLabel="No jobs available">
+            No completed jobs available at the moment.
+          </Text>
         </View>
       ) : (
         <View style={styles.container}>
@@ -151,16 +202,18 @@ const SearchScreen = ({ navigation }) => {
             contentContainerStyle={styles.listContent}
           />
           {totalPages > 1 && (
-            <View style={styles.paginationContainer}>
+            <View style={[styles.paginationContainer, isTablet && styles.paginationTablet]}>
               <Button
                 mode="outlined"
                 onPress={handlePreviousPage}
                 disabled={currentPage === 1}
                 style={styles.pageButton}
                 icon="chevron-left"
+                accessibilityLabel="Previous page"
+                accessibilityHint="Go to previous page of jobs"
               >
               </Button>
-              <Text style={styles.pageText}>
+              <Text style={styles.pageText} accessibilityLabel={`Page ${currentPage} of ${totalPages}`}>
                 Page {currentPage} of {totalPages}
               </Text>
               <Button
@@ -169,12 +222,28 @@ const SearchScreen = ({ navigation }) => {
                 disabled={currentPage === totalPages}
                 style={styles.pageButton}
                 icon="chevron-right"
+                accessibilityLabel="Next page"
+                accessibilityHint="Go to next page of jobs"
               >
               </Button>
             </View>
           )}
         </View>
       )}
+      <Snackbar
+        visible={!!error}
+        onDismiss={() => setError(null)}
+        action={{
+          label: 'Retry',
+          onPress: () => {
+            setError(null);
+            if (retryFunction) retryFunction();
+          },
+        }}
+        accessibilityLabel={`Error: ${error}`}
+      >
+        {error}
+      </Snackbar>
     </SafeAreaView>
   );
 };
@@ -198,6 +267,16 @@ const styles = StyleSheet.create({
     margin: 10,
     elevation: 4,
   },
+  cardTablet: {
+    marginHorizontal: 20,
+    maxWidth: 600,
+    alignSelf: 'center',
+  },
+  skeleton: {
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
   noJobsContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -217,6 +296,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+  },
+  paginationTablet: {
+    paddingHorizontal: 40,
   },
   pageButton: {
     flex: 1,

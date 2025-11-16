@@ -1,16 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Linking, Alert, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Title, Paragraph, Button, FAB } from 'react-native-paper';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
+import { decryptContact } from '../utils/encryption';
 
 const JobDetailsScreen = ({ route, navigation }) => {
   const { job } = route.params;
   const [currentJob, setCurrentJob] = useState(job);
+  const [decryptedContact, setDecryptedContact] = useState('');
+
+  useEffect(() => {
+    // Decrypt contact information if user is authorized to view it
+    const decryptContactInfo = async () => {
+      try {
+        if (currentJob.contact && (auth.currentUser.uid === currentJob.postedBy || currentJob.status !== 'available')) {
+          const decrypted = decryptContact(currentJob.contact);
+          setDecryptedContact(decrypted);
+        }
+      } catch (error) {
+        console.error('Error decrypting contact:', error);
+        // Keep contact empty if decryption fails
+      }
+    };
+
+    decryptContactInfo();
+  }, [currentJob.contact, currentJob.postedBy, currentJob.status]);
 
   const handleCall = () => {
-    Linking.openURL(`tel:${currentJob.contact}`).catch(() => {
+    if (!decryptedContact) {
+      Alert.alert('Error', 'Contact information not available.');
+      return;
+    }
+    Linking.openURL(`tel:${decryptedContact}`).catch(() => {
       Alert.alert('Error', 'Unable to make a call. Please check your device settings.');
     });
   };
@@ -91,6 +114,11 @@ const JobDetailsScreen = ({ route, navigation }) => {
               <Paragraph>Contact: {currentJob.contact}</Paragraph>
             )} */}
             {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
+              <Button mode="outlined" onPress={handleCall} style={styles.button}>
+                Call Now Before Taking The Job
+              </Button>
+            )}
+            {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
               <Button mode="contained" onPress={handleTakeJob} style={styles.button}>
                 Take Job
               </Button>
@@ -104,11 +132,6 @@ const JobDetailsScreen = ({ route, navigation }) => {
                   Mark as Completed
                 </Button>
               </View>
-            )}
-            {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
-              <Button mode="outlined" onPress={handleCall} style={styles.button}>
-                Call Now
-              </Button>
             )}
           </Card.Content>
         </Card>

@@ -2,19 +2,24 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Title, Card } from 'react-native-paper';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
+import { validateLogin } from '../utils/validation';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields.');
+    const errors = validateLogin(email, password);
+    if (Object.keys(errors).length > 0) {
+      const errorMessage = Object.values(errors).join('\n');
+      Alert.alert('Validation Error', errorMessage);
       return;
     }
+
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -22,6 +27,23 @@ const LoginScreen = ({ navigation }) => {
       Alert.alert('Login Failed', error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address first.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert('Success', 'Password reset email sent. Check your inbox.');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -48,6 +70,9 @@ const LoginScreen = ({ navigation }) => {
             />
             <Button mode="contained" onPress={handleLogin} loading={loading} style={styles.button}>
               Login
+            </Button>
+            <Button onPress={handlePasswordReset} loading={resetLoading} style={styles.link}>
+              Forgot Password?
             </Button>
             <Button onPress={() => navigation.navigate('Signup')} style={styles.link}>
               Don't have an account? Sign Up

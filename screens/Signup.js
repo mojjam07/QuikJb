@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Title, Card } from 'react-native-paper';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
+import { validateSignup } from '../utils/validation';
 
 const SignupScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -12,17 +13,23 @@ const SignupScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields.');
+    const errors = validateSignup(email, password, confirmPassword);
+    if (Object.keys(errors).length > 0) {
+      const errorMessage = Object.values(errors).join('\n');
+      Alert.alert('Validation Error', errorMessage);
       return;
     }
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
-      return;
-    }
+
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Send email verification
+      await sendEmailVerification(userCredential.user);
+      Alert.alert(
+        'Account Created',
+        'Please check your email and verify your account before logging in.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
     } catch (error) {
       Alert.alert('Signup Failed', error.message);
     } finally {
