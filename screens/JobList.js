@@ -5,6 +5,7 @@ import { Card, Title, Paragraph, Button, FAB, Searchbar, TouchableRipple, Text, 
 import * as Location from 'expo-location';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
+import { reverseGeocodeWithTimeout } from '../utils/geocoding';
 
 const JobListScreen = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
@@ -43,9 +44,13 @@ const JobListScreen = ({ navigation }) => {
       let location = await Location.getCurrentPositionAsync({});
       setLocation(location.coords);
       // Also set user state for filtering
-      const result = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
-      if (result[0] && result[0].region) {
-        setUserState(result[0].region);
+      try {
+        const result = await reverseGeocodeWithTimeout({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+        if (result[0] && result[0].region) {
+          setUserState(result[0].region);
+        }
+      } catch (error) {
+        console.warn('Geocoding for user location failed, skipping state filter:', error.message);
       }
       setError(null);
     } catch (error) {
@@ -66,7 +71,7 @@ const JobListScreen = ({ navigation }) => {
         .filter(job => job.status === 'available');
       const jobsWithAddresses = await Promise.all(jobsData.map(async (job) => {
         try {
-          const result = await Location.reverseGeocodeAsync({ latitude: job.location.lat, longitude: job.location.lng });
+          const result = await reverseGeocodeWithTimeout({ latitude: job.location.lat, longitude: job.location.lng });
           const address = result[0] ? (() => {
             const name = result[0].name;
             const street = result[0].street;
@@ -83,7 +88,7 @@ const JobListScreen = ({ navigation }) => {
           const state = result[0] && result[0].region ? result[0].region : 'Unknown';
           return { ...job, address, state };
         } catch (error) {
-          console.error('Error reverse geocoding:', error);
+          console.warn('Geocoding for job location failed, using coordinates:', error.message);
           return { ...job, address: `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}`, state: 'Unknown' };
         }
       }));
@@ -176,18 +181,20 @@ const JobListScreen = ({ navigation }) => {
           <Paragraph accessibilityLabel={`Status: ${item.status}`}>Status: {item.status}</Paragraph>
         </Card.Content>
       </TouchableRipple>
-      <Card.Actions>
-        <Button
-          mode="contained"
-          onPress={() => handleContact(item.contact)}
-          style={styles.button}
-          disabled={item.status === 'completed'}
-          accessibilityLabel={item.status === 'completed' ? 'Job completed' : 'Contact employer'}
-          accessibilityHint={item.status === 'completed' ? 'This job is no longer available' : 'Opens phone dialer to call employer'}
-        >
-          Contact
-        </Button>
-      </Card.Actions>
+      {item.userId !== auth.currentUser?.uid && (
+        <Card.Actions>
+          <Button
+            mode="contained"
+            onPress={() => handleContact(item.contact)}
+            style={styles.button}
+            disabled={item.status === 'completed'}
+            accessibilityLabel={item.status === 'completed' ? 'Job completed' : 'Contact employer'}
+            accessibilityHint={item.status === 'completed' ? 'This job is no longer available' : 'Opens phone dialer to call employer'}
+          >
+            Contact
+          </Button>
+        </Card.Actions>
+      )}
     </Card>
   );
 

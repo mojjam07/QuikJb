@@ -5,6 +5,7 @@ import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button, ActivityInd
 import * as Location from 'expo-location';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import { reverseGeocodeWithTimeout } from '../utils/geocoding';
 
 const SearchScreen = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
@@ -40,9 +41,13 @@ const SearchScreen = ({ navigation }) => {
         return;
       }
       const location = await Location.getCurrentPositionAsync({});
-      const result = await Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude });
-      if (result[0] && result[0].region) {
-        setUserState(result[0].region);
+      try {
+        const result = await reverseGeocodeWithTimeout({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+        if (result[0] && result[0].region) {
+          setUserState(result[0].region);
+        }
+      } catch (error) {
+        console.warn('Geocoding for user location failed, skipping state filter:', error.message);
       }
       setError(null);
     } catch (error) {
@@ -62,7 +67,7 @@ const SearchScreen = ({ navigation }) => {
       const jobsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const jobsWithAddresses = await Promise.all(jobsData.map(async (job) => {
         try {
-          const result = await Location.reverseGeocodeAsync({ latitude: job.location.lat, longitude: job.location.lng });
+          const result = await reverseGeocodeWithTimeout({ latitude: job.location.lat, longitude: job.location.lng });
           const address = result[0] ? (() => {
             const name = result[0].name;
             const street = result[0].street;
@@ -79,7 +84,7 @@ const SearchScreen = ({ navigation }) => {
           const state = result[0] && result[0].region ? result[0].region : 'Unknown';
           return { ...job, address, state };
         } catch (error) {
-          console.error('Error reverse geocoding:', error);
+          console.warn('Geocoding for job location failed, using coordinates:', error.message);
           return { ...job, address: `${job.location.lat.toFixed(4)}, ${job.location.lng.toFixed(4)}`, state: 'Unknown' };
         }
       }));

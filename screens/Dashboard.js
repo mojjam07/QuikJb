@@ -149,9 +149,9 @@ const DashboardScreen = ({ navigation }) => {
             </Card>
           ))}
         </View>
-        {lastJob && (
-          <View style={styles.lastJobSection}>
-            <Title style={styles.sectionTitle}>Latest Job</Title>
+        <View style={styles.lastJobSection}>
+          <Title style={styles.sectionTitle}>Latest Job</Title>
+          {lastJob ? (
             <Card style={styles.jobCard} onPress={() => navigation.navigate('JobDetails', { job: lastJob })}>
               <Card.Content>
                 <Title>{lastJob.title}</Title>
@@ -161,8 +161,10 @@ const DashboardScreen = ({ navigation }) => {
                 <Paragraph>Status: {lastJob.status}</Paragraph>
               </Card.Content>
             </Card>
-          </View>
-        )}
+          ) : (
+            <Paragraph style={styles.noJobsText}>No jobs posted yet. Be the first to post one!</Paragraph>
+          )}
+        </View>
         <View style={styles.testimonialsSection}>
           <Title style={styles.sectionTitle}>Latest Testimonial</Title>
           {testimonials.length > 0 ? (
@@ -209,7 +211,8 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   logo: {
-    marginBottom: 10,
+    margin: 0,
+    padding: 0,
   },
   brandName: {
     fontSize: 24,
@@ -245,6 +248,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     elevation: 2,
     backgroundColor: '#fff',
+  },
+  noJobsText: {
+    textAlign: 'center',
+    fontStyle: 'italic',
+    color: '#666',
   },
   testimonialsSection: {
     marginBottom: 40, // Add bottom margin for nav/tab bar

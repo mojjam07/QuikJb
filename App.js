@@ -37,7 +37,7 @@ export default function App() {
   return (
     <PaperProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName={user ? 'Dashboard' : 'Login'}>
+        <Stack.Navigator initialRouteName={user ? 'Home' : 'Login'}>
           {!user ? (
             <>
               <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
@@ -45,7 +45,7 @@ export default function App() {
             </>
           ) : (
             <>
-              <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
+              <Stack.Screen name="Home" component={DashboardScreen} options={{ title: 'Home' }} />
               <Stack.Screen name="JobList" component={JobListScreen} options={{ title: 'Nearby Jobs' }} />
               <Stack.Screen name="PostJob" component={PostJobScreen} options={{ title: 'Post a Job' }} />
               <Stack.Screen name="JobDetails" component={JobDetailsScreen} options={{ title: 'Job Details' }} />
