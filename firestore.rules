@@ -14,17 +14,34 @@ service cloud.firestore {
       return pay is number && pay > 0;
     }
 
+    function isValidPhoneNumber(contact) {
+      return contact is string &&
+             (contact.matches('^\\+?[1-9]\\d{1,14}$') ||
+              contact.matches('^\\(\\d{3}\\)\\s\\d{3}-\\d{4}$') ||
+              contact.matches('^\\d{3}-\\d{3}-\\d{4}$') ||
+              contact.matches('^\\d{10}$'));
+    }
+
+    function canCreateJob() {
+      // Rate limiting cannot be enforced in Firestore security rules
+      // Consider implementing rate limiting in your application logic
+      return true;
+    }
+
     match /jobs/{jobId} {
       allow read: if true;
 
       allow create: if isAuthenticated() &&
+                       canCreateJob() &&
                        isValidPayAmount(request.resource.data.pay) &&
                        request.resource.data.title is string &&
                        request.resource.data.title.size() > 0 &&
                        request.resource.data.description is string &&
                        request.resource.data.description.size() > 0 &&
                        request.resource.data.jobType is string &&
-                       request.resource.data.jobType.size() > 0;
+                       request.resource.data.jobType.size() > 0 &&
+                       (!request.resource.data.contact ||
+                        request.resource.data.contact is string);
 
       allow update: if isAuthenticated() && (
         isOwner(resource.data.postedBy) ||

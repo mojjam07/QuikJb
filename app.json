@@ -33,13 +33,9 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "firebaseApiKey": "AIzaSyDL5Aa6LA_ETJ0mdvzuNans1Te9URRwMkk",
-      "firebaseAuthDomain": "quick-job-app-86d2f.firebaseapp.com",
-      "firebaseProjectId": "quick-job-app-86d2f",
-      "firebaseStorageBucket": "quick-job-app-86d2f.firebasestorage.app",
-      "firebaseMessagingSenderId": "580476559751",
-      "firebaseAppId": "1:580476559751:web:5fc075276ce3190673b322",
-      "firebaseMeasurementId": "G-ABCDEFGHIJ"
+      "eas": {
+        "projectId": "your-project-id"
+      }
     }
   }
 }

@@ -5,7 +5,7 @@ import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button, ActivityInd
 import * as Location from 'expo-location';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { reverseGeocodeWithTimeout } from '../utils/geocoding';
+import { reverseGeocodeWithTimeout, getCurrentPositionAsync, openLocationSettings } from '../utils/geocoding';
 
 const SearchScreen = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
@@ -18,6 +18,7 @@ const SearchScreen = ({ navigation }) => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
   const [retryFunction, setRetryFunction] = useState(null);
+  const [canOpenSettings, setCanOpenSettings] = useState(false);
   const { width } = Dimensions.get('window');
   const isTablet = width > 768;
 
@@ -40,7 +41,7 @@ const SearchScreen = ({ navigation }) => {
         setRetryFunction(() => fetchUserLocation);
         return;
       }
-      const location = await Location.getCurrentPositionAsync({});
+      const location = await getCurrentPositionAsync({});
       try {
         const result = await reverseGeocodeWithTimeout({ latitude: location.coords.latitude, longitude: location.coords.longitude });
         if (result[0] && result[0].region) {
@@ -52,8 +53,17 @@ const SearchScreen = ({ navigation }) => {
       setError(null);
     } catch (error) {
       console.error('Error fetching user location:', error);
-      setError('Failed to get your location. Please check your internet connection and try again.');
+      let errorMessage = 'Failed to get your location. Please check your internet connection and try again.';
+      let canOpenSettings = false;
+
+      if (error.message === 'LOCATION_SERVICES_DISABLED' || error.userMessage) {
+        errorMessage = error.userMessage || 'Location services are disabled. Please enable location services in your device settings.';
+        canOpenSettings = error.canOpenSettings || true;
+      }
+
+      setError(errorMessage);
       setRetryFunction(() => fetchUserLocation);
+      setCanOpenSettings(canOpenSettings);
     } finally {
       setLocationLoading(false);
     }
@@ -238,11 +248,18 @@ const SearchScreen = ({ navigation }) => {
       <Snackbar
         visible={!!error}
         onDismiss={() => setError(null)}
+        duration={6000}
         action={{
-          label: 'Retry',
+          label: canOpenSettings ? 'Settings' : 'Retry',
           onPress: () => {
-            setError(null);
-            if (retryFunction) retryFunction();
+            if (canOpenSettings) {
+              openLocationSettings();
+              setError(null);
+              setCanOpenSettings(false);
+            } else {
+              setError(null);
+              if (retryFunction) retryFunction();
+            }
           },
         }}
         accessibilityLabel={`Error: ${error}`}

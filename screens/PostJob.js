@@ -7,6 +7,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
 import { validateJobPost } from '../utils/validation';
 import { encryptContact } from '../utils/encryption';
+import { getCurrentPositionAsync, openLocationSettings } from '../utils/geocoding';
 
 const PostJobScreen = ({ navigation }) => {
   const [title, setTitle] = useState('');
@@ -20,6 +21,7 @@ const PostJobScreen = ({ navigation }) => {
   const [postingLoading, setPostingLoading] = useState(false);
   const [error, setError] = useState(null);
   const [retryFunction, setRetryFunction] = useState(null);
+  const [canOpenSettings, setCanOpenSettings] = useState(false);
   const { width } = Dimensions.get('window');
   const isTablet = width > 768;
 
@@ -32,13 +34,22 @@ const PostJobScreen = ({ navigation }) => {
         setRetryFunction(() => getLocation);
         return;
       }
-      let location = await Location.getCurrentPositionAsync({});
+      let location = await getCurrentPositionAsync({});
       setLocation(location.coords);
       setError(null);
     } catch (error) {
       console.error('Error getting location:', error);
-      setError('Failed to get your location. Please check your internet connection and try again.');
+      let errorMessage = 'Failed to get your location. Please check your internet connection and try again.';
+      let canOpenSettings = false;
+
+      if (error.message === 'LOCATION_SERVICES_DISABLED' || error.userMessage) {
+        errorMessage = error.userMessage || 'Location services are disabled. Please enable location services in your device settings.';
+        canOpenSettings = error.canOpenSettings || true;
+      }
+
+      setError(errorMessage);
       setRetryFunction(() => getLocation);
+      setCanOpenSettings(canOpenSettings);
     } finally {
       setLocationLoading(false);
     }
@@ -199,11 +210,18 @@ const PostJobScreen = ({ navigation }) => {
       <Snackbar
         visible={!!error}
         onDismiss={() => setError(null)}
+        duration={6000}
         action={{
-          label: 'Retry',
+          label: canOpenSettings ? 'Settings' : 'Retry',
           onPress: () => {
-            setError(null);
-            if (retryFunction) retryFunction();
+            if (canOpenSettings) {
+              openLocationSettings();
+              setError(null);
+              setCanOpenSettings(false);
+            } else {
+              setError(null);
+              if (retryFunction) retryFunction();
+            }
           },
         }}
         accessibilityLabel={`Error: ${error}`}
