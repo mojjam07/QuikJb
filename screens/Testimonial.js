@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Title, Card } from 'react-native-paper';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -43,37 +43,43 @@ const TestimonialScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title style={styles.title}>Leave a Testimonial</Title>
-            <View style={styles.ratingContainer}>
-              <Title style={styles.ratingTitle}>Rating:</Title>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+      >
+        <View style={styles.content}>
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title style={styles.title}>Leave a Testimonial</Title>
+              <View style={styles.ratingContainer}>
+                <Title style={styles.ratingTitle}>Rating:</Title>
+                <TextInput
+                  label="Rating (1-5)"
+                  value={rating.toString()}
+                  onChangeText={(text) => {
+                    const num = parseInt(text) || 1;
+                    setRating(Math.min(5, Math.max(1, num)));
+                  }}
+                  keyboardType="numeric"
+                  style={styles.ratingInput}
+                />
+              </View>
               <TextInput
-                label="Rating (1-5)"
-                value={rating.toString()}
-                onChangeText={(text) => {
-                  const num = parseInt(text) || 1;
-                  setRating(Math.min(5, Math.max(1, num)));
-                }}
-                keyboardType="numeric"
-                style={styles.ratingInput}
+                label="Comment"
+                value={comment}
+                onChangeText={setComment}
+                multiline
+                numberOfLines={4}
+                style={styles.input}
               />
-            </View>
-            <TextInput
-              label="Comment"
-              value={comment}
-              onChangeText={setComment}
-              multiline
-              numberOfLines={4}
-              style={styles.input}
-            />
-            <Button mode="contained" onPress={handleSubmit} loading={loading} style={styles.button}>
-              Submit Testimonial
-            </Button>
-          </Card.Content>
-        </Card>
-      </View>
+              <Button mode="contained" onPress={handleSubmit} loading={loading} style={styles.button}>
+                Submit Testimonial
+              </Button>
+            </Card.Content>
+          </Card>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -82,6 +88,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   content: {
     flex: 1,
