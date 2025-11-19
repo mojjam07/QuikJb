@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Card, Title, RadioButton, ActivityIndicator, Snackbar, Text } from 'react-native-paper';
 import * as Location from 'expo-location';
@@ -107,8 +107,13 @@ const PostJobScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Card style={[styles.card, isTablet && styles.cardTablet]}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+      >
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          <Card style={[styles.card, isTablet && styles.cardTablet]}>
           <Card.Content>
             <Title accessibilityLabel="Post a new job form">Post a New Job</Title>
             <TextInput
@@ -207,6 +212,7 @@ const PostJobScreen = ({ navigation }) => {
           </Card.Content>
         </Card>
       </ScrollView>
+      </KeyboardAvoidingView>
       <Snackbar
         visible={!!error}
         onDismiss={() => setError(null)}
@@ -290,6 +296,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
     color: '#666',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
 });
 

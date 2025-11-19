@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, Alert, Image, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Title, Card, Paragraph } from 'react-native-paper';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
@@ -11,6 +11,8 @@ const SignupScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { width, height } = Dimensions.get('window');
   const isTablet = width > 768;
   const logoSize = isTablet ? Math.min(width * 0.4, height * 0.2) : Math.min(width * 0.4, height * 0.2);
@@ -42,7 +44,12 @@ const SignupScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+      >
+        <View style={styles.content}>
         <View style={styles.brandingContainer}>
           <Image source={require('../assets/logo1.png')} style={[styles.logo, { width: logoSize, height: logoSize }]} />
           {/* <Title style={[styles.brandName, isTablet && styles.brandNameTablet]}>Quick-Job</Title> */}
@@ -63,14 +70,16 @@ const SignupScreen = ({ navigation }) => {
               label="Password"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
+              right={<TextInput.Icon icon={showPassword ? "eye-off" : "eye"} onPress={() => setShowPassword(!showPassword)} />}
               style={styles.input}
             />
             <TextInput
               label="Confirm Password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
+              right={<TextInput.Icon icon={showConfirmPassword ? "eye-off" : "eye"} onPress={() => setShowConfirmPassword(!showConfirmPassword)} />}
               style={styles.input}
             />
             <Button mode="contained" onPress={handleSignup} loading={loading} style={styles.button}>
@@ -82,6 +91,7 @@ const SignupScreen = ({ navigation }) => {
           </Card.Content>
         </Card>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -136,6 +146,9 @@ const styles = StyleSheet.create({
   },
   link: {
     marginTop: 10,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
 });
 
