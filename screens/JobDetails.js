@@ -9,33 +9,20 @@ import { decryptContact } from '../utils/encryption';
 const JobDetailsScreen = ({ route, navigation }) => {
   const { job } = route.params;
   const [currentJob, setCurrentJob] = useState(job);
-  const [decryptedContact, setDecryptedContact] = useState('');
-
-  useEffect(() => {
-    // Decrypt contact information if user is authorized to view it
-    const decryptContactInfo = async () => {
-      try {
-        if (currentJob.contact && (auth.currentUser.uid === currentJob.postedBy || currentJob.status !== 'available')) {
-          const decrypted = decryptContact(currentJob.contact);
-          setDecryptedContact(decrypted);
-        }
-      } catch (error) {
-        console.error('Error decrypting contact:', error);
-        // Keep contact empty if decryption fails
-      }
-    };
-
-    decryptContactInfo();
-  }, [currentJob.contact, currentJob.postedBy, currentJob.status]);
 
   const handleCall = () => {
-    if (!decryptedContact) {
+    if (!currentJob.contact) {
       Alert.alert('Error', 'Contact information not available.');
       return;
     }
-    Linking.openURL(`tel:${decryptedContact}`).catch(() => {
-      Alert.alert('Error', 'Unable to make a call. Please check your device settings.');
-    });
+    try {
+      const decrypted = decryptContact(currentJob.contact);
+      Linking.openURL(`tel:${decrypted}`).catch(() => {
+        Alert.alert('Error', 'Unable to make a call. Please check your device settings.');
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Unable to decrypt contact information.');
+    }
   };
 
   const handleTakeJob = async () => {

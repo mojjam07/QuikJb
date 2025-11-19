@@ -167,11 +167,7 @@ const JobListScreen = ({ navigation }) => {
     }
   };
 
-  const handleContact = (contact) => {
-    Linking.openURL(`tel:${contact}`).catch(() => {
-      Alert.alert('Error', 'Unable to make a call. Please check your device settings.');
-    });
-  };
+
 
   const renderJobItem = ({ item }) => (
     <Card style={[styles.card, isTablet && styles.cardTablet]}>
@@ -180,7 +176,7 @@ const JobListScreen = ({ navigation }) => {
         accessibilityLabel={`View details for ${item.title} job`}
         accessibilityHint="Opens job details screen"
       >
-        <Card.Content>
+        <Card.Content style={styles.cardContent}>
           <Title accessibilityLabel={`Job title: ${item.title}`}>{item.title}</Title>
           <Paragraph accessibilityLabel={`Job description: ${item.description}`}>{item.description}</Paragraph>
           <Paragraph accessibilityLabel={`Job type: ${item.jobType}`}>Job Type: {item.jobType}</Paragraph>
@@ -191,20 +187,7 @@ const JobListScreen = ({ navigation }) => {
           <Paragraph accessibilityLabel={`Status: ${item.status}`}>Status: {item.status}</Paragraph>
         </Card.Content>
       </TouchableRipple>
-      {item.userId !== auth.currentUser?.uid && (
-        <Card.Actions>
-          <Button
-            mode="contained"
-            onPress={() => handleContact(item.contact)}
-            style={styles.button}
-            disabled={item.status === 'completed'}
-            accessibilityLabel={item.status === 'completed' ? 'Job completed' : 'Contact employer'}
-            accessibilityHint={item.status === 'completed' ? 'This job is no longer available' : 'Opens phone dialer to call employer'}
-          >
-            Contact
-          </Button>
-        </Card.Actions>
-      )}
+
     </Card>
   );
 
@@ -346,6 +329,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     maxWidth: 600,
     alignSelf: 'center',
+  },
+  cardContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
   skeleton: {
     backgroundColor: '#e0e0e0',

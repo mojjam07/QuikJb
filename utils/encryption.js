@@ -8,24 +8,12 @@ const ENCRYPTION_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY || 'default-key-ch
  * @returns {string} - A secure random key
  */
 const generateSecureKey = () => {
-  try {
-    // Try to use crypto.getRandomValues if available (web)
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      const array = new Uint8Array(32);
-      crypto.getRandomValues(array);
-      return CryptoJS.lib.WordArray.create(array);
-    }
-    // Fallback for React Native environments
-    const randomBytes = [];
-    for (let i = 0; i < 32; i++) {
-      randomBytes.push(Math.floor(Math.random() * 256));
-    }
-    return CryptoJS.lib.WordArray.create(randomBytes);
-  } catch (error) {
-    console.warn('Secure random generation failed, using fallback:', error);
-    // Ultimate fallback - not secure but functional
-    return CryptoJS.lib.WordArray.random(32);
+  // Use Math.random() for React Native compatibility
+  const randomBytes = [];
+  for (let i = 0; i < 32; i++) {
+    randomBytes.push(Math.floor(Math.random() * 256));
   }
+  return CryptoJS.lib.WordArray.create(randomBytes);
 };
 
 /**
@@ -38,8 +26,10 @@ export const encryptData = (data) => {
     return data;
   }
   try {
-    // Use a combination of the encryption key and a random IV for better security
-    const key = CryptoJS.PBKDF2(ENCRYPTION_KEY, CryptoJS.lib.WordArray.random(128/8), {
+    // Generate salt for key derivation
+    const salt = generateSecureKey();
+    // Derive key from password and salt
+    const key = CryptoJS.PBKDF2(ENCRYPTION_KEY, salt, {
       keySize: 256/32,
       iterations: 1000
     });
@@ -51,8 +41,8 @@ export const encryptData = (data) => {
       padding: CryptoJS.pad.Pkcs7
     });
 
-    // Combine IV and encrypted data
-    return iv.toString() + ':' + encrypted.toString();
+    // Combine salt, IV and encrypted data
+    return salt.toString() + ':' + iv.toString() + ':' + encrypted.toString();
   } catch (error) {
     console.error('Encryption error:', error);
     // Fallback to simple encryption without IV for compatibility
@@ -75,27 +65,47 @@ export const decryptData = (data) => {
     return data;
   }
   try {
-    // Check if data contains IV (new format: iv:encrypted)
+    // Check if data contains salt, IV (new format: salt:iv:encrypted)
     if (data.includes(':')) {
-      const [ivString, encryptedData] = data.split(':', 2);
-      const iv = CryptoJS.enc.Hex.parse(ivString);
-      const key = CryptoJS.PBKDF2(ENCRYPTION_KEY, CryptoJS.lib.WordArray.random(128/8), {
-        keySize: 256/32,
-        iterations: 1000
-      });
+      const parts = data.split(':');
+      if (parts.length === 3) {
+        // New format with salt and IV
+        const [saltString, ivString, encryptedData] = parts;
+        const salt = CryptoJS.enc.Hex.parse(saltString);
+        const iv = CryptoJS.enc.Hex.parse(ivString);
+        const key = CryptoJS.PBKDF2(ENCRYPTION_KEY, salt, {
+          keySize: 256/32,
+          iterations: 1000
+        });
 
-      const decrypted = CryptoJS.AES.decrypt(encryptedData, key, {
-        iv: iv,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      });
+        const decrypted = CryptoJS.AES.decrypt(encryptedData, key, {
+          iv: iv,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7
+        });
 
-      return decrypted.toString(CryptoJS.enc.Utf8);
-    } else {
-      // Legacy format without IV
-      const bytes = CryptoJS.AES.decrypt(data, ENCRYPTION_KEY);
-      return bytes.toString(CryptoJS.enc.Utf8);
+        return decrypted.toString(CryptoJS.enc.Utf8);
+      } else if (parts.length === 2) {
+        // Legacy format with IV but no salt
+        const [ivString, encryptedData] = parts;
+        const iv = CryptoJS.enc.Hex.parse(ivString);
+        const key = CryptoJS.PBKDF2(ENCRYPTION_KEY, CryptoJS.lib.WordArray.random(128/8), {
+          keySize: 256/32,
+          iterations: 1000
+        });
+
+        const decrypted = CryptoJS.AES.decrypt(encryptedData, key, {
+          iv: iv,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7
+        });
+
+        return decrypted.toString(CryptoJS.enc.Utf8);
+      }
     }
+    // Legacy format without IV or salt
+    const bytes = CryptoJS.AES.decrypt(data, ENCRYPTION_KEY);
+    return bytes.toString(CryptoJS.enc.Utf8);
   } catch (error) {
     console.error('Decryption error:', error);
     return data; // Fallback to original data
@@ -105,23 +115,23 @@ export const decryptData = (data) => {
 /**
  * Encrypts contact information before storing in database
  * @param {string} contact - The contact information to encrypt
- * @returns {string} - Encrypted contact information
+ * @returns {string} - Contact information (unchanged, no encryption)
  */
 export const encryptContact = (contact) => {
   if (!contact || typeof contact !== 'string') {
     return contact;
   }
-  return encryptData(contact);
+  return contact; // No encryption for contact numbers
 };
 
 /**
  * Decrypts contact information when retrieving from database
  * @param {string} contact - The contact information to decrypt
- * @returns {string} - Decrypted contact information
+ * @returns {string} - Contact information (unchanged, no decryption)
  */
 export const decryptContact = (contact) => {
   if (!contact || typeof contact !== 'string') {
     return contact;
   }
-  return decryptData(contact);
+  return contact; // No decryption for contact numbers
 };
