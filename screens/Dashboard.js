@@ -48,6 +48,7 @@ const DashboardScreen = ({ navigation }) => {
         setLastJob(jobsData[0]);
       }
     } catch (error) {
+      Alert.alert('Error', 'Failed to fetch job testimonials. Please try again later.');
       console.error('Error fetching testimonials:', error);
     }
   }, []);
@@ -83,6 +84,7 @@ const DashboardScreen = ({ navigation }) => {
         setLastJob(jobsData[0]);
       }
     }, (error) => {
+      Alert.alert('Error', 'Real-time update failed for job testimonials.');
       console.error('Error listening to testimonials:', error);
     });
 
@@ -195,8 +197,6 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
-const numColumns = width > 600 ? 3 : 2; // 3 columns for tablets/web, 2 for phones
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   card: {
-    width: (width - 30) / numColumns,
+    width: (width - 30) / (width > 600 ? 3 : 2),
     marginBottom: 15,
     elevation: 4,
     backgroundColor: '#fff',

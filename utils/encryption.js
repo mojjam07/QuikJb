@@ -1,3 +1,5 @@
+// import 'react-native-get-random-values';
+// import { getRandomValues } from 'react-native-get-random-values';
 import CryptoJS from 'crypto-js';
 
 // Encryption key - In production, this should be stored securely (e.g., environment variable)
@@ -8,11 +10,8 @@ const ENCRYPTION_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY || 'default-key-ch
  * @returns {string} - A secure random key
  */
 const generateSecureKey = () => {
-  // Use Math.random() for React Native compatibility
-  const randomBytes = [];
-  for (let i = 0; i < 32; i++) {
-    randomBytes.push(Math.floor(Math.random() * 256));
-  }
+  const randomBytes = new Uint8Array(32);
+  getRandomValues(randomBytes);
   return CryptoJS.lib.WordArray.create(randomBytes);
 };
 
@@ -115,23 +114,33 @@ export const decryptData = (data) => {
 /**
  * Encrypts contact information before storing in database
  * @param {string} contact - The contact information to encrypt
- * @returns {string} - Contact information (unchanged, no encryption)
+ * @returns {string} - The encrypted contact information
  */
 export const encryptContact = (contact) => {
   if (!contact || typeof contact !== 'string') {
     return contact;
   }
-  return contact; // No encryption for contact numbers
+  try {
+    return encryptData(contact);
+  } catch (error) {
+    console.error('Contact encryption error:', error);
+    return contact;
+  }
 };
 
 /**
  * Decrypts contact information when retrieving from database
  * @param {string} contact - The contact information to decrypt
- * @returns {string} - Contact information (unchanged, no decryption)
+ * @returns {string} - The decrypted contact information
  */
 export const decryptContact = (contact) => {
   if (!contact || typeof contact !== 'string') {
     return contact;
   }
-  return contact; // No decryption for contact numbers
+  try {
+    return decryptData(contact);
+  } catch (error) {
+    console.error('Contact decryption error:', error);
+    return contact;
+  }
 };

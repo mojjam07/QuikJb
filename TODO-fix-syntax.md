@@ -1,3 +1,0 @@
-- [ ] Add KeyboardAvoidingView and Platform to imports in PostJob.js
-- [ ] Add closing </KeyboardAvoidingView> tag after </ScrollView>
-- [ ] Add keyboardAvoidingView style to StyleSheet
