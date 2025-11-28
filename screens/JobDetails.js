@@ -10,19 +10,32 @@ const JobDetailsScreen = ({ route, navigation }) => {
   const { job } = route.params;
   const [currentJob, setCurrentJob] = useState(job);
 
-  const handleCall = () => {
-    if (!currentJob.contact) {
-      Alert.alert('Error', 'Contact information not available.');
-      return;
+  const handleChat = () => {
+    // Determine the other user for chat
+    let otherUserId, otherUserEmail;
+    if (auth.currentUser.uid === currentJob.postedBy) {
+      // Current user is job poster
+      if (currentJob.status === 'taken') {
+        // Chat with assigned user
+        otherUserId = currentJob.assignedUser;
+        otherUserEmail = 'Job Taker';
+      } else {
+        // Chat with potential taker (if any)
+        otherUserId = currentJob.assignedUser || 'potential_taker';
+        otherUserEmail = 'Job Seeker';
+      }
+    } else {
+      // Current user is job seeker/taker, chat with poster
+      otherUserId = currentJob.postedBy;
+      otherUserEmail = 'Job Poster';
     }
-    try {
-      const decrypted = decryptContact(currentJob.contact);
-      Linking.openURL(`tel:${decrypted}`).catch(() => {
-        Alert.alert('Error', 'Unable to make a call. Please check your device settings.');
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Unable to decrypt contact information.');
-    }
+
+    navigation.navigate('Chat', {
+      jobId: currentJob.id,
+      jobTitle: currentJob.title,
+      otherUserId: otherUserId,
+      otherUserEmail: otherUserEmail,
+    });
   };
 
   const handleTakeJob = async () => {
@@ -101,24 +114,37 @@ const JobDetailsScreen = ({ route, navigation }) => {
               <Paragraph>Contact: {currentJob.contact}</Paragraph>
             )} */}
             {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
-              <Button mode="outlined" onPress={handleCall} style={styles.button}>
-                Call Now Before Taking The Job
-              </Button>
-            )}
-            {currentJob.status === 'available' && auth.currentUser.uid !== currentJob.postedBy && (
-              <Button mode="contained" onPress={handleTakeJob} style={styles.button}>
-                Take Job
-              </Button>
+              <View style={styles.buttonContainer}>
+                <Button mode="outlined" onPress={handleChat} style={styles.button}>
+                  Chat with Job Poster
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleTakeJob}
+                  style={styles.button}
+                  disabled={!(currentJob.approvedSeekers && currentJob.approvedSeekers.includes(auth.currentUser.uid))}
+                >
+                  {currentJob.approvedSeekers && currentJob.approvedSeekers.includes(auth.currentUser.uid) ? 'Take Job' : 'Waiting for Approval'}
+                </Button>
+              </View>
             )}
             {currentJob.status === 'taken' && currentJob.assignedUser === auth.currentUser.uid && (
               <View style={styles.buttonContainer}>
                 <Button mode="contained" disabled style={styles.disabledButton}>
                   Job Taken
                 </Button>
+                <Button mode="outlined" onPress={handleChat} style={styles.button}>
+                  Chat with Job Poster
+                </Button>
                 <Button mode="contained" onPress={handleMarkCompleted} style={styles.button}>
                   Mark as Completed
                 </Button>
               </View>
+            )}
+            {currentJob.status === 'taken' && currentJob.postedBy === auth.currentUser.uid && (
+              <Button mode="outlined" onPress={handleChat} style={styles.button}>
+                Chat with Job Taker
+              </Button>
             )}
           </Card.Content>
         </Card>

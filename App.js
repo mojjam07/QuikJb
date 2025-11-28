@@ -16,6 +16,8 @@ import JobDetailsScreen from './screens/JobDetails';
 import SearchScreen from './screens/Search';
 import TestimonialScreen from './screens/Testimonial';
 import AllTestimonialsScreen from './screens/AllTestimonials';
+import ProfileScreen from './screens/Profile';
+import ChatScreen from './screens/Chat';
 
 const Stack = createStackNavigator();
 
@@ -65,6 +67,8 @@ export default function App() {
               <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Search Jobs', headerRight: () => <HeaderRightLogo /> }} />
               <Stack.Screen name="Testimonial" component={TestimonialScreen} options={{ title: 'Leave Testimonial', headerRight: () => <HeaderRightLogo /> }} />
               <Stack.Screen name="AllTestimonials" component={AllTestimonialsScreen} options={{ title: 'All Testimonials', headerRight: () => <HeaderRightLogo /> }} />
+              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', headerRight: () => <HeaderRightLogo /> }} />
+              <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', headerRight: () => <HeaderRightLogo /> }} />
             </>
           )}
         </Stack.Navigator>

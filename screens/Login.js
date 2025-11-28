@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, Image, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, Title, Card, Paragraph } from 'react-native-paper';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 import { validateLogin } from '../utils/validation';
+import { useGoogleSignIn } from '../utils/googleAuth';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -15,6 +17,23 @@ const LoginScreen = ({ navigation }) => {
   const { width, height } = Dimensions.get('window');
   const isTablet = width > 768;
   const logoSize = isTablet ? Math.min(width * 0.4, height * 0.2) : Math.min(width * 0.4, height * 0.2);
+
+  const { request, response, promptAsync, signInWithGoogle } = useGoogleSignIn();
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    const handleGoogleResponse = async () => {
+      if (response?.type === 'success') {
+        setGoogleLoading(true);
+        const { user, error } = await signInWithGoogle();
+        setGoogleLoading(false);
+        if (error) {
+          Alert.alert('Google Sign-in Failed', error.message);
+        }
+      }
+    };
+    handleGoogleResponse();
+  }, [response]);
 
   const handleLogin = async () => {
     const errors = validateLogin(email, password);
@@ -61,12 +80,10 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.content}>
         <View style={styles.brandingContainer}>
           <Image source={require('../assets/logo1.png')} style={[styles.logo, { width: logoSize, height: logoSize }]} />
-          {/* <Title style={[styles.brandName, isTablet && styles.brandNameTablet]}>Quick-Job</Title> */}
           <Paragraph style={[styles.subtitle, isTablet && styles.subtitleTablet]}>Enter Your Registered Data to Continue Using</Paragraph>
         </View>
         <Card style={styles.card}>
           <Card.Content>
-            {/* <Title style={styles.title}>Login</Title> */}
             <TextInput
               label="Email"
               value={email}
@@ -91,6 +108,15 @@ const LoginScreen = ({ navigation }) => {
             </Button>
             <Button onPress={() => navigation.navigate('Signup')} style={styles.link}>
               Don't have an account? Sign Up
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => promptAsync()}
+              loading={googleLoading}
+              disabled={!request}
+              style={styles.googleButton}
+            >
+              Sign in with Google
             </Button>
           </Card.Content>
         </Card>
@@ -117,15 +143,6 @@ const styles = StyleSheet.create({
   logo: {
     marginBottom: 5,
   },
-  brandName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  brandNameTablet: {
-    fontSize: 32,
-  },
   subtitle: {
     fontSize: 16,
     color: '#666',
@@ -138,10 +155,6 @@ const styles = StyleSheet.create({
   card: {
     elevation: 4,
   },
-  title: {
-    textAlign: 'center',
-    marginBottom: 20,
-  },
   input: {
     marginBottom: 10,
   },
@@ -150,6 +163,9 @@ const styles = StyleSheet.create({
   },
   link: {
     marginTop: 10,
+  },
+  googleButton: {
+    marginTop: 20,
   },
   keyboardAvoidingView: {
     flex: 1,

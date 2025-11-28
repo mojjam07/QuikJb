@@ -35,7 +35,10 @@
     "extra": {
       "eas": {
         "projectId": "your-project-id"
-      }
+      },
+      "googleAndroidClientId": "YOUR_ANDROID_CLIENT_ID_HERE",
+      "googleIosClientId": "YOUR_IOS_CLIENT_ID_HERE",
+      "googleExpoClientId": "YOUR_EXPO_CLIENT_ID_HERE"
     }
   }
 }

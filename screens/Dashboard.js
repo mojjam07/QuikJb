@@ -123,7 +123,7 @@ const DashboardScreen = ({ navigation }) => {
     { title: 'Nearby Jobs', icon: 'map-marker', screen: 'JobList' },
     { title: 'Post Job', icon: 'plus', screen: 'PostJob' },
     { title: 'Search Jobs', icon: 'magnify', screen: 'Search' },
-    { title: 'Testimonial', icon: 'star', screen: 'Testimonial' },
+    { title: 'Profile', icon: 'account', screen: 'Profile' },
   ];
 
   return (
