@@ -42,12 +42,13 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "eas": {
-        "projectId": "c0d84736-2c0b-425b-b495-2f5099471234"
-      },
       "googleAndroidClientId": "YOUR_ANDROID_CLIENT_ID_HERE",
       "googleIosClientId": "YOUR_IOS_CLIENT_ID_HERE",
-      "googleExpoClientId": "YOUR_EXPO_CLIENT_ID_HERE"
-    }
+      "googleExpoClientId": "YOUR_EXPO_CLIENT_ID_HERE",
+      "eas": {
+        "projectId": "ecd14820-5ce7-4cce-906f-e82e5d554150"
+      }
+    },
+    "owner": "mojjam07"
   }
 }
