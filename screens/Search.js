@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, Text, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button, ActivityIndicator, Snackbar } from 'react-native-paper';
+import { Card, Title, Paragraph, Searchbar, TouchableRipple, Button, ActivityIndicator, Snackbar, Chip } from 'react-native-paper';
 import * as Location from 'expo-location';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -11,6 +11,7 @@ const SearchScreen = ({ navigation }) => {
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all, available, taken, completed
   const [userState, setUserState] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -30,7 +31,7 @@ const SearchScreen = ({ navigation }) => {
   useEffect(() => {
     filterJobs();
     setCurrentPage(1); // Reset to first page when filters change
-  }, [jobs, searchQuery, userState]);
+  }, [jobs, searchQuery, userState, statusFilter]);
 
   const fetchUserLocation = async () => {
     setLocationLoading(true);
@@ -72,7 +73,8 @@ const SearchScreen = ({ navigation }) => {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'jobs'), where('status', '==', 'completed'));
+      // Fetch all jobs regardless of status - filter is done client-side
+      const q = query(collection(db, 'jobs'));
       const querySnapshot = await getDocs(q);
       const jobsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const jobsWithAddresses = await Promise.all(jobsData.map(async (job) => {
@@ -111,6 +113,11 @@ const SearchScreen = ({ navigation }) => {
 
   const filterJobs = () => {
     let filtered = jobs;
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(job => job.status === statusFilter);
+    }
 
     // Filter by search query
     if (searchQuery) {
@@ -164,6 +171,7 @@ const SearchScreen = ({ navigation }) => {
             Pay: ${item.pay} {item.payFrequency ? `per ${item.payFrequency}` : ''}
           </Paragraph>
           <Paragraph accessibilityLabel={`Location: ${item.address}`}>Location: {item.address}</Paragraph>
+          <Paragraph accessibilityLabel={`Status: ${item.status}`}>Status: {item.status}</Paragraph>
         </Card.Content>
       </Card>
     </TouchableRipple>
@@ -191,6 +199,40 @@ const SearchScreen = ({ navigation }) => {
         accessibilityLabel="Search jobs"
         accessibilityHint="Enter text to filter jobs by type, title, or description"
       />
+      {/* Status Filter Chips */}
+      <View style={styles.filterContainer}>
+        <Text style={styles.filterLabel}>Filter by Status:</Text>
+        <View style={styles.chipContainer}>
+          <Chip
+            selected={statusFilter === 'all'}
+            onPress={() => setStatusFilter('all')}
+            style={styles.chip}
+          >
+            All
+          </Chip>
+          <Chip
+            selected={statusFilter === 'available'}
+            onPress={() => setStatusFilter('available')}
+            style={styles.chip}
+          >
+            Available
+          </Chip>
+          <Chip
+            selected={statusFilter === 'taken'}
+            onPress={() => setStatusFilter('taken')}
+            style={styles.chip}
+          >
+            Taken
+          </Chip>
+          <Chip
+            selected={statusFilter === 'completed'}
+            onPress={() => setStatusFilter('completed')}
+            style={styles.chip}
+          >
+            Completed
+          </Chip>
+        </View>
+      </View>
       {loading ? (
         <View style={styles.container}>
           <FlatList
@@ -204,7 +246,7 @@ const SearchScreen = ({ navigation }) => {
       ) : filteredJobs.length === 0 ? (
         <View style={styles.noJobsContainer}>
           <Text style={styles.noJobsText} accessibilityLabel="No jobs available">
-            No completed jobs available at the moment.
+            No jobs found. Try adjusting your search or filters.
           </Text>
         </View>
       ) : (
@@ -308,6 +350,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#666',
     textAlign: 'center',
+  },
+  filterContainer: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  chip: {
+    marginRight: 8,
+    marginBottom: 8,
   },
   paginationContainer: {
     flexDirection: 'row',

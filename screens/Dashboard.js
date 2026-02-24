@@ -137,7 +137,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.header}>
           <Image source={require('../assets/logo1.png')} style={[styles.logo, { width: logoSize, height: logoSize }]} />
           {/* <Title style={[styles.brandName, isTablet && styles.brandNameTablet]}>Quick-Job</Title> */}
-          <Paragraph style={[styles.subtitle, isTablet && styles.subtitleTablet]}>Connect Employers with Workers Instantly</Paragraph>
+          <Paragraph style={[styles.subtitle, isTablet && styles.subtitleTablet]}>Connect Employers with Workers Instantly and Vice Versa!</Paragraph>
           <Title style={[styles.welcomeTitle, isTablet && styles.welcomeTitleTablet]}>Welcome, {auth.currentUser?.email?.split('@')[0] || 'User'}!</Title>
         </View>
         <View style={styles.grid}>

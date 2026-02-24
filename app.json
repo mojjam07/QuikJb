@@ -15,8 +15,13 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses location to find nearby jobs.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to find nearby jobs."
-      }
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to find nearby jobs.",
+        "UIBackgroundModes": [
+          "remote-notification",
+          "remote-notification"
+        ]
+      },
+      "bundleIdentifier": "com.mojjam07.QuickJob"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,15 +31,19 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
-      ]
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ],
+      "package": "com.mojjam07.QuickJob"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "c0d84736-2c0b-425b-b495-2f5099471234"
       },
       "googleAndroidClientId": "YOUR_ANDROID_CLIENT_ID_HERE",
       "googleIosClientId": "YOUR_IOS_CLIENT_ID_HERE",

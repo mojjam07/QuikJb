@@ -12,11 +12,77 @@ const ProfileScreen = ({ navigation }) => {
   const [userJobs, setUserJobs] = useState([]);
   const [userTestimonials, setUserTestimonials] = useState([]);
   const [activeChats, setActiveChats] = useState([]);
+  const [posterJobs, setPosterJobs] = useState([]);
+  const [assignedJobs, setAssignedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const isTablet = screenWidth > 768;
 
   const currentUser = auth.currentUser;
+
+  // Build chats from posterJobs and assignedJobs
+  useEffect(() => {
+    const buildChats = async () => {
+      const allJobs = [...posterJobs, ...assignedJobs];
+      const chats = [];
+      
+      for (const job of allJobs) {
+        try {
+          let otherUserId, otherUserEmail;
+          if (job.postedBy === currentUser.uid) {
+            if (job.assignedUser) {
+              otherUserId = job.assignedUser;
+              otherUserEmail = 'Job Taker';
+            } else {
+              continue;
+            }
+          } else {
+            otherUserId = job.postedBy;
+            otherUserEmail = 'Job Poster';
+          }
+          
+          const chatId = [job.id, currentUser.uid, otherUserId].sort().join('_');
+          const messagesRef = collection(db, 'chats', chatId, 'messages');
+          const lastMsgQuery = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
+          const lastMsgSnapshot = await getDocs(lastMsgQuery);
+          
+          let lastMessage = 'No messages yet';
+          let lastMessageTime = null;
+          
+          if (!lastMsgSnapshot.empty) {
+            const lastMsg = lastMsgSnapshot.docs[0].data();
+            lastMessage = lastMsg.text || 'No messages';
+            lastMessageTime = lastMsg.timestamp;
+          }
+          
+          chats.push({
+            chatId,
+            jobId: job.id,
+            jobTitle: job.title,
+            otherUserId,
+            otherUserEmail,
+            lastMessage,
+            lastMessageTime,
+            unreadCount: 0,
+          });
+        } catch (error) {
+          console.warn('Error fetching chat for job:', job.id, error.message);
+        }
+      }
+      
+      chats.sort((a, b) => {
+        if (!a.lastMessageTime) return 1;
+        if (!b.lastMessageTime) return -1;
+        return b.lastMessageTime.toDate() - a.lastMessageTime.toDate();
+      });
+      
+      setActiveChats(chats);
+    };
+    
+    if (posterJobs.length > 0 || assignedJobs.length > 0) {
+      buildChats();
+    }
+  }, [posterJobs, assignedJobs, currentUser]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -29,7 +95,7 @@ const ProfileScreen = ({ navigation }) => {
       const fetchUserData = async () => {
         try {
           // Fetch user's posted jobs
-          const jobsQuery = query(collection(db, 'jobs'), where('userId', '==', currentUser.uid));
+          const jobsQuery = query(collection(db, 'jobs'), where('postedBy', '==', currentUser.uid));
           const jobsUnsubscribe = onSnapshot(jobsQuery, (querySnapshot) => {
             const jobs = [];
             querySnapshot.forEach((doc) => {
@@ -58,15 +124,37 @@ const ProfileScreen = ({ navigation }) => {
             setUserTestimonials(testimonials);
           });
 
-          // Fetch active chats for the user - temporarily disabled due to permissions issue
-          // TODO: Implement a better approach that doesn't require listing all chats
-          setActiveChats([]);
+          // Fetch active chats for the user
+          // Get jobs where user is poster or assigned user, then find chats
+          const userJobsQuery = query(
+            collection(db, 'jobs'),
+            where('postedBy', '==', currentUser.uid)
+          );
+          
+          const assignedJobsQuery = query(
+            collection(db, 'jobs'),
+            where('assignedUser', '==', currentUser.uid)
+          );
+          
+          // Listen to jobs where user is poster
+          const posterJobsUnsubscribe = onSnapshot(userJobsQuery, (querySnapshot) => {
+            const posterJobs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setPosterJobs(posterJobs);
+          });
+
+          // Also listen to jobs where user is assigned  
+          const assignedJobsUnsubscribe = onSnapshot(assignedJobsQuery, (assignedSnapshot) => {
+            const assignedJobs = assignedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setAssignedJobs(assignedJobs);
+          });
 
           setLoading(false);
 
           return () => {
             jobsUnsubscribe();
             allJobsUnsubscribe();
+            if (posterJobsUnsubscribe) posterJobsUnsubscribe();
+            if (assignedJobsUnsubscribe) assignedJobsUnsubscribe();
           };
         } catch (error) {
           Alert.alert('Error', 'Failed to fetch user data');
